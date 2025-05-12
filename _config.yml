@@ -13,16 +13,16 @@
 # you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
-title: MM
-email:
+title: Neatoo
+email: keithvoels@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
   Write an awesome description for your new site here. You can edit this
   line in _config.yml. It will appear in your document head meta (for
   Google search results) and in your feed.xml site description.
-twitter_username: username
-github_username: username
+twitter_username: neatoodotnet
+github_username: neatoodotnet
 minimal_mistakes_skin: default
-search: true
+search: false
 
 # Build settings
 markdown: kramdown
@@ -58,9 +58,9 @@ plugins:
   - jekyll-include-cache
 
 author:
-  name   : "First Lastname"
-  avatar : "/assets/images/bio-photo.jpg"
-  bio    : "My awesome biography constrained to a sentence or two goes here."
+  name   : "Neatoo"
+  avatar : "/assets/images/neatoo_icon.png"
+  bio    : "Neatoo is a DDD Aggregate Framework for .NET C#. It specializes in creating bindable and serializable Aggregate Entity Graphs for Blazor and WPF. The goal is to define the business logic once and reuse it in both the UI and the Application Service. Neatoo uniquely uses Roslyn Source Generators to create readable and performant code specific to the Entities."
   links:
     - label: "Website"
       icon: "fas fa-fw fa-link"

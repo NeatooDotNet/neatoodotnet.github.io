@@ -20,9 +20,7 @@ internal partial class Person : IdEntityBase<Person>, IPerson
 - Entities inherit from Neatoo.EntityBase<T> defining themself as T
   - [IdEntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/IdEntityBase.cs) inherits from Neatoo.EntityBase. It contains shared logic.
 - Partial is required for Neatoo to generate property definitions and MapTo/MapFrom/etc methods
-- It is highly recommended that the concrete be Internal with a public facing Interface
-  - This de-couples Entities from Entities for Unit Testing
-  - There are components like the constructor and the factory methods that should not be used outside of the library. However, they cannot be private either.
+
 
 ### Constructor
 
@@ -36,7 +34,6 @@ internal partial class Person : IdEntityBase<Person>, IPerson
 
 - Depedency Injection using [Microsoft.Extension.DependencyInjection](https://www.nuget.org/packages/microsoft.extensions.dependencyinjection/) is fully supported
 - The base constructor requires IEntityBaseServices<Person> for Neatoo Framework constructs
-  - Using 'new EntityBaseServices' should be limited to use in Unit Tests
 - Rules are injected and added to the RuleManager
 
 ### Properties
@@ -70,11 +67,6 @@ internal partial class Person : IdEntityBase<Person>, IPerson
 
 ### Factory Methods
 
-- [Create], [Fetch], [Insert], [Update] and [Delete] are available Factory methods
-- These are [Data Mapper methods](https://martinfowler.com/eaaCatalog/dataMapper.html) for interacting with the persistance layer
-- Services can be injected using the [Service] attribute on the parameter. [Service] parameters must follow non-service parameters
-- Async Task methods are supported
-- [Remote] signifies that the Factory method should always be called on the Server. Most of the time these will be on the Aggregate Root
 
 ``` csharp
     [Create]
@@ -100,6 +92,13 @@ internal partial class Person : IdEntityBase<Person>, IPerson
     public async Task Delete([Service] IPersonDbContext personContext) {}
 
 ```
+
+- [Create], [Fetch], [Insert], [Update] and [Delete] are available Factory methods
+- These are [Data Mapper methods](https://martinfowler.com/eaaCatalog/dataMapper.html) for interacting with the persistance layer
+- Services can be injected using the [Service] attribute on the parameter. [Service] parameters must follow non-service parameters
+- Async Task methods are supported
+- [Remote] signifies that the Factory method should always be called on the Server. Most of the time these will be on the Aggregate Root
+
 
 ## Rule
 
