@@ -1,12 +1,10 @@
 ---
-title: "Overview"
+title: "Entity"
 layout: single
-permalink: /gettingstarted/
+permalink: /overview/entity/
 ---
 
-This is a summary of Neatoo features using the [Person](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/PersonModel.cs) entity. More in-depth pages are available for each feature.
-
-# Entity
+This is a brief overview of Neatoo Entity features using the [Person](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/PersonModel.cs) entity. More in-depth pages are in the works for each feature.
 
 ## Class Declaration
 
@@ -90,19 +88,6 @@ internal partial class Person : IdEntityBase<Person>, IPerson
 
 ```
 
-- [Create], [Fetch], [Insert], [Update] and [Delete] are available Factory methods
+
 - These are [Data Mapper methods](https://martinfowler.com/eaaCatalog/dataMapper.html) for interacting with the persistance layer
-- Services can be injected using the [Service] attribute on the parameter. [Service] parameters must follow non-service parameters
-- Async Task methods are supported
-- [Remote] signifies that the Factory method should always be called on the Server. Most of the time these will be on the Aggregate Root
-
-
-# Rule
-
-# Factory
-
-# Authorization
-
-# Configuring the Server
-
-# Configuring the Client
+- See [Factory](/overview/factory/)
