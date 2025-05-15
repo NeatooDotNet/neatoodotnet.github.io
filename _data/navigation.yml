@@ -11,10 +11,12 @@ main:
 #    url: /about/
 
 central:
-  - title: "Example"
+  - title: "Setup"
     children:
-      - title: "Person"
-        url: /example/person/
+      - title: "Client"
+        url: /setup/client/
+      - title: "Server"
+        url: /setup/server/
   - title: "Overview"
     children:
       - title: "Entity"
@@ -23,3 +25,9 @@ central:
         url: /overview/rule/
       - title: "Factory"
         url: /overview/factory/
+      - title: "Authorization"
+        url: /overview/authorization/
+  - title: "Examples"
+    children:
+      - title: "Person"
+        url: /example/person/
