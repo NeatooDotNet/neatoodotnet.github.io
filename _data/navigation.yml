@@ -11,6 +11,10 @@ main:
 #    url: /about/
 
 central:
+  - title: "Getting Started"
+    children:
+      - title: "Create a Simple Application"
+        url: /gettingstarted/createsimpleapplication
   - title: "Setup"
     children:
       - title: "Client"
