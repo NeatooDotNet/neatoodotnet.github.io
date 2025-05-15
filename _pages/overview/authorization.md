@@ -12,10 +12,10 @@ A seperate Authorization Class is defined that the Factory calls to perform the 
 
 ``` csharp
 [Authorize<IPersonAuth>]
-internal partial class Person : IPersonModel
+internal partial class Person : IPerson
 ```
 
-The Authorization Class is linked to the Entity by the generic Authorize class attribute. Above IPersonModelAuth is the Authorization Class for the Person Entity.
+The Authorization Class is linked to the Entity by the generic Authorize class attribute. Above IPersonAuth is the Authorization Class for the Person Entity.
 
 If an interface is defined it is treated as a service and the implementation is resolved from the DI container.
 

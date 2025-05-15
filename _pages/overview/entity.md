@@ -8,7 +8,7 @@ Neatoo [EntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/
 It provides the bindable properties, triggers rules on property change and bindable meta properties.
 It also defines the Factory Methods as the Data Mapper to the persistance layer.
 
-This is a brief overview of [EntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityBase.cs) using the [Person](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/PersonModel.cs) entity. More in-depth pages are in the works for each feature.
+This is a brief overview of [EntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityBase.cs) using the [Person](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/Person.cs) entity. More in-depth pages are in the works for each feature.
 
 ## Class Declaration
 
@@ -109,22 +109,22 @@ If an EntityBase ("child") is assigned to the property of another EntityBase ("p
 
 ``` csharp
     [Create]
-    public void Create([Service] IPersonPhoneList personPhoneModelList) {}
+    public void Create([Service] IPersonPhoneList PersonPhoneList) {}
 
     [Remote]
     [Fetch]
     public async Task<bool> Fetch([Service] IPersonDbContext personContext,
-                                    [Service] IPersonPhoneListFactory personPhoneModelListFactory) {}
+                                    [Service] IPersonPhoneListFactory PersonPhoneListFactory) {}
 
     [Remote]
     [Insert]
     public async Task<PersonEntity?> Insert([Service] IPersonDbContext personContext,
-                                    [Service] IPersonPhoneListFactory personPhoneModelListFactory) {}
+                                    [Service] IPersonPhoneListFactory PersonPhoneListFactory) {}
 
     [Remote]
     [Update]
     public async Task<PersonEntity?> Update([Service] IPersonDbContext personContext,
-                                    [Service] IPersonPhoneListFactory personPhoneModelListFactory) {}
+                                    [Service] IPersonPhoneListFactory PersonPhoneListFactory) {}
 
     [Remote]
     [Delete]
@@ -145,6 +145,6 @@ The breadcrumbs of the properties is available in the event args [NeatooProperty
 
 A corresponding [EntityList](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityListBase.cs) provides a list of Entities while supporting all of the EntityBase Aggregate Entity features.
 
-- When an item is removed from an [EntityList](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityListBase.cs) it is marked IsDeleted=true and added to EntityList.DeletedList. Entities within EntityList.DeletedList need to be handled in the Insert/Update/Delete Factory Methods. Ex [PersonPhoneList](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/PersonPhoneModelList.cs).Update.
+- When an item is removed from an [EntityList](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityListBase.cs) it is marked IsDeleted=true and added to EntityList.DeletedList. Entities within EntityList.DeletedList need to be handled in the Insert/Update/Delete Factory Methods. Ex [PersonPhoneList](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/PersonPhoneList.cs).Update.
 - The value of the Parent property of EntityBases within the list will be the parent of the list not the list itself.
   - Ex. PersonPhone.Parent = Person. NOT PersonPhone.Parent = PersonPhoneList

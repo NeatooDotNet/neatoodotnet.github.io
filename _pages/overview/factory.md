@@ -34,7 +34,7 @@ For each Entity a Factory is live generated using a [Roslyn Source Generator](ht
 
 ## Name
 
-The generated factory is matched to the Entity name with a 'Factory' postfix. If there is an interface matched by name (ex Entity -> IEntity) the factory returns the interface. For example, the factory for [Person](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/PersonModel.cs) which implements IPerson is [IPersonFactory](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/Generated/Neatoo.RemoteFactory.FactoryGenerator/Neatoo.RemoteFactory.FactoryGenerator.FactoryGenerator/DomainModel.PersonFactory.g.cs).
+The generated factory is matched to the Entity name with a 'Factory' postfix. If there is an interface matched by name (ex Entity -> IEntity) the factory returns the interface. For example, the factory for [Person](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/Person.cs) which implements IPerson is [IPersonFactory](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/Generated/Neatoo.RemoteFactory.FactoryGenerator/Neatoo.RemoteFactory.FactoryGenerator.FactoryGenerator/DomainModel.PersonFactory.g.cs).
 
 ## Factory Methods
 
@@ -42,22 +42,22 @@ Factory Methods are the methods within an Entity that perform the Data Mapping t
 
 ``` csharp
     [Create]
-    public void Create([Service] IPersonPhoneList personPhoneModelList) {}
+    public void Create([Service] IPersonPhoneList PersonPhoneList) {}
 
     [Remote]
     [Fetch]
     public async Task<bool> Fetch([Service] IPersonDbContext personContext,
-                                    [Service] IPersonPhoneListFactory personPhoneModelListFactory) {}
+                                    [Service] IPersonPhoneListFactory PersonPhoneListFactory) {}
 
     [Remote]
     [Insert]
     public async Task<PersonEntity?> Insert([Service] IPersonDbContext personContext,
-                                    [Service] IPersonPhoneListFactory personPhoneModelListFactory) {}
+                                    [Service] IPersonPhoneListFactory PersonPhoneListFactory) {}
 
     [Remote]
     [Update]
     public async Task<PersonEntity?> Update([Service] IPersonDbContext personContext,
-                                    [Service] IPersonPhoneListFactory personPhoneModelListFactory) {}
+                                    [Service] IPersonPhoneListFactory PersonPhoneListFactory) {}
 
     [Remote]
     [Delete]

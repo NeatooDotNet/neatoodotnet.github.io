@@ -12,7 +12,7 @@ To get started with Neatoo, follow these steps:
 	
     ```csharp
 
-    builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPersonModel).Assembly);
+    builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembly);
     builder.Services.AddKeyedScoped(Neatoo.RemoteFactory.RemoteFactoryServices.HttpClientKey, (sp, key) => {
             return new HttpClient { BaseAddress = new Uri("http://localhost/") };
     });
