@@ -13,15 +13,66 @@ main:
 central:
   - title: "Getting Started"
     children:
-      - title: "Create a Simple Application"
-        url: /gettingstarted/createsimpleapplication
-  - title: "Setup"
-    children:
-      - title: "Client"
+      - title: "Introduction"
+        url: /introduction/
+      - title: "Quick Start"
+        url: /gettingstarted/createsimpleapplication/
+      - title: "Client Setup"
         url: /setup/client/
-      - title: "Server"
+      - title: "Server Setup"
         url: /setup/server/
-  - title: "Overview"
+
+  - title: "Concepts"
+    children:
+      - title: "DDD Overview"
+        url: /concepts/ddd-overview/
+      - title: "Aggregates & Entity Graphs"
+        url: /concepts/aggregates/
+      - title: "Rules Philosophy"
+        url: /concepts/rules-philosophy/
+      - title: "Factory Pattern"
+        url: /concepts/factories-overview/
+      - title: "Client-Server Architecture"
+        url: /concepts/client-server/
+      - title: "Properties & Meta-Properties"
+        url: /concepts/properties/
+      - title: "Authorization Model"
+        url: /concepts/authorization/
+
+  - title: "Reference"
+    children:
+      - title: "EntityBase<T>"
+        url: /reference/entity-base/
+      - title: "ValidateBase<T>"
+        url: /reference/validate-base/
+      - title: "Base<T> & Value Objects"
+        url: /reference/base-value-objects/
+      - title: "EntityListBase<I>"
+        url: /reference/entity-list-base/
+      - title: "Rules Engine"
+        url: /reference/rules/
+      - title: "Factory Operations"
+        url: /reference/factory-operations/
+      - title: "Data Mapping"
+        url: /reference/data-mapping/
+      - title: "Authorization System"
+        url: /reference/authorization/
+      - title: "Dependency Injection"
+        url: /reference/dependency-injection/
+
+  - title: "Guides"
+    children:
+      - title: "Blazor Integration"
+        url: /guides/blazor-integration/
+
+  - title: "Examples"
+    children:
+      - title: "Person"
+        url: /example/person/
+      - title: "Order Aggregate"
+        url: /examples/order-aggregate/
+
+  - title: "Overview (Legacy)"
     children:
       - title: "Entity"
         url: /overview/entity/
@@ -31,7 +82,3 @@ central:
         url: /overview/factory/
       - title: "Authorization"
         url: /overview/authorization/
-  - title: "Examples"
-    children:
-      - title: "Person"
-        url: /example/person/
