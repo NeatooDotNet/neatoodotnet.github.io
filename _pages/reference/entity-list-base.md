@@ -1,5 +1,5 @@
 ---
-title: "EntityListBase<I> Reference"
+title: "EntityListBase Reference"
 layout: single
 permalink: /reference/entity-list-base/
 toc: true

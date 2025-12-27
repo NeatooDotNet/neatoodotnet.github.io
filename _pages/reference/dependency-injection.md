@@ -136,7 +136,7 @@ builder.Services.AddNeatooServices(NeatooFactory.Remote, typeof(IPerson).Assembl
 
 Entity constructors receive services through DI.
 
-### Required: IEntityBaseServices<T>
+### Required: IEntityBaseServices
 
 Every `EntityBase<T>` must accept and pass `IEntityBaseServices<T>` to the base:
 
@@ -431,8 +431,8 @@ public class PersonAuth : IPersonAuth
         _features = features;
     }
 
-    [Authorize(AuthorizeOperation.Create)]
-    public Authorized HasCreate()
+    [AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+    public Authorized CanCreate()
     {
         if (!_features.IsEnabled("PersonCreation"))
             return Authorized.No("Feature disabled");

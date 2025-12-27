@@ -8,37 +8,43 @@ sidebar:
     nav: "central"
 ---
 
-This reference provides complete documentation for Neatoo's authorization system, including enums, attributes, method signatures, and integration patterns. For conceptual understanding, see [Authorization Model](/concepts/authorization/).
+This reference provides complete documentation for the Neatoo authorization system, including attributes, method signatures, and integration patterns. For conceptual understanding, see [Authorization Model](/concepts/authorization/).
 
-## AuthorizeOperation Enum
+## AuthorizeFactoryOperation Enum
 
-The `AuthorizeOperation` enum defines the four fundamental operations that can be authorized:
+The `AuthorizeFactoryOperation` enum defines the operations that can be authorized:
 
 ```csharp
 [Flags]
-public enum AuthorizeOperation
+public enum AuthorizeFactoryOperation
 {
-    Create  = 0b0001,  // 1 - Creating new entities
-    Read    = 0b0010,  // 2 - Reading/fetching entities
-    Write   = 0b0100,  // 4 - Modifying existing entities
-    Execute = 0b1000   // 8 - Executing special operations (delete, custom)
+    Create  = 1,    // Creating new instances
+    Fetch   = 2,    // Reading/fetching instances
+    Insert  = 4,    // Inserting new records
+    Update  = 8,    // Modifying existing records
+    Delete  = 16,   // Removing records
+    Read    = 32,   // General read access (bitwise combination)
+    Write   = 64,   // General write access (bitwise combination)
+    Execute = 128   // Executing special operations (bitwise combination)
 }
 ```
 
-### Usage with [Authorize] Attribute
+These values are bitwise flags used to define the `FactoryOperation` enum, allowing combinations of operations to be specified.
 
-The enum is used with the `[Authorize]` attribute on authorization methods:
+### Usage with [AuthorizeFactory] Attribute
+
+The enum is used with the `[AuthorizeFactory]` attribute on authorization methods:
 
 ```csharp
 public interface IPersonAuth
 {
     // Single operation
-    [Authorize(AuthorizeOperation.Create)]
-    bool HasCreate();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+    bool CanCreate();
 
     // Multiple operations (bitwise OR)
-    [Authorize(AuthorizeOperation.Read | AuthorizeOperation.Write)]
-    bool HasAccess();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Fetch)]
+    bool CanFetch();
 }
 ```
 
@@ -47,57 +53,22 @@ public interface IPersonAuth
 | Operation | Meaning | Typical Use |
 |-----------|---------|-------------|
 | `Create` | Permission to create new instances | `[Create]` factory methods |
-| `Read` | Permission to read/retrieve data | `[Fetch]` factory methods |
-| `Write` | Permission to modify existing data | `[Insert]`, `[Update]` factory methods |
-| `Execute` | Permission for special operations | `[Delete]`, custom operations |
+| `Fetch` | Permission to fetch/retrieve data | `[Fetch]` factory methods |
+| `Insert` | Permission to insert new records | `[Insert]` factory methods |
+| `Update` | Permission to modify existing records | `[Update]` factory methods |
+| `Delete` | Permission to delete records | `[Delete]` factory methods |
+| `Read` | General read permission | Broad read access |
+| `Write` | General write permission | Broad write access |
+| `Execute` | Permission for special operations | Custom operations |
 
-## FactoryOperation Enum
+## How Authorization Works
 
-The `FactoryOperation` enum represents specific factory operations, each defined as a bitwise combination of `AuthorizeOperation` values:
+When a factory operation is invoked, Neatoo determines which authorization methods to call based on the operation type:
 
-```csharp
-[Flags]
-public enum FactoryOperation
-{
-    Create = AuthorizeOperation.Read | AuthorizeOperation.Create,
-    // Binary: 0011 (Read + Create)
+### Authorization Flow
 
-    Fetch = AuthorizeOperation.Read,
-    // Binary: 0010 (Read only)
-
-    Insert = AuthorizeOperation.Read | AuthorizeOperation.Create | AuthorizeOperation.Write,
-    // Binary: 0111 (Read + Create + Write)
-
-    Update = AuthorizeOperation.Read | AuthorizeOperation.Write,
-    // Binary: 0110 (Read + Write)
-
-    Delete = AuthorizeOperation.Read | AuthorizeOperation.Execute,
-    // Binary: 1010 (Read + Execute)
-
-    Execute = AuthorizeOperation.Read | AuthorizeOperation.Execute
-    // Binary: 1010 (Read + Execute)
-}
-```
-
-### Bitwise Mapping Logic
-
-When a factory operation is invoked, Neatoo determines which authorization methods to call using bitwise AND:
-
-```
-Authorization method is called when:
-    FactoryOperation & AuthorizeOperation != 0
-```
-
-### Mapping Table
-
-| Factory Operation | Binary | Calls Create? | Calls Read? | Calls Write? | Calls Execute? |
-|-------------------|--------|---------------|-------------|--------------|----------------|
-| `Create` | 0011 | Yes | Yes | No | No |
-| `Fetch` | 0010 | No | Yes | No | No |
-| `Insert` | 0111 | Yes | Yes | Yes | No |
-| `Update` | 0110 | No | Yes | Yes | No |
-| `Delete` | 1010 | No | Yes | No | Yes |
-| `Execute` | 1010 | No | Yes | No | Yes |
+1. **Client-side check**: `Can*` methods (e.g., `CanCreate()`, `CanFetch()`) enable UI decisions
+2. **Server-side enforcement**: Server always checks authorization before execution
 
 ### Practical Example
 
@@ -106,26 +77,29 @@ Given this authorization interface:
 ```csharp
 public interface IPersonAuth
 {
-    [Authorize(AuthorizeOperation.Read | AuthorizeOperation.Write)]
-    bool HasAccess();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+    bool CanCreate();
 
-    [Authorize(AuthorizeOperation.Create)]
-    bool HasCreate();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Fetch)]
+    bool CanFetch();
 
-    [Authorize(AuthorizeOperation.Execute)]
-    bool HasDelete();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Update)]
+    bool CanUpdate();
+
+    [AuthorizeFactory(AuthorizeFactoryOperation.Delete)]
+    bool CanDelete();
 }
 ```
 
 The factory operations call these methods:
 
-| Operation | Methods Called |
-|-----------|----------------|
-| `factory.Create()` | `HasAccess()` (Read matches), `HasCreate()` |
-| `factory.Fetch()` | `HasAccess()` (Read matches) |
-| `factory.Save()` (Insert) | `HasAccess()` (Read+Write match), `HasCreate()` |
-| `factory.Save()` (Update) | `HasAccess()` (Read+Write match) |
-| `factory.Save()` (Delete) | `HasAccess()` (Read matches), `HasDelete()` |
+| Operation | Authorization Method Called |
+|-----------|----------------------------|
+| `factory.Create()` | `CanCreate()` |
+| `factory.Fetch()` | `CanFetch()` |
+| `factory.Save()` (Insert) | `CanCreate()` |
+| `factory.Save()` (Update) | `CanUpdate()` |
+| `factory.Save()` (Delete) | `CanDelete()` |
 
 ## Authorization Method Signatures
 
@@ -136,8 +110,8 @@ Authorization methods can use several signatures:
 Simple boolean return for basic authorization:
 
 ```csharp
-[Authorize(AuthorizeOperation.Create)]
-public bool HasCreate()
+[AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+public bool CanCreate()
 {
     return _user.Role >= Role.Admin;
 }
@@ -148,8 +122,8 @@ public bool HasCreate()
 Return `Authorized` struct for richer feedback:
 
 ```csharp
-[Authorize(AuthorizeOperation.Create)]
-public Authorized HasCreate()
+[AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+public Authorized CanCreate()
 {
     if (_user.Role >= Role.Admin)
         return Authorized.Yes;
@@ -176,7 +150,7 @@ public readonly struct Authorized
 }
 ```
 
-### Generic Authorized<T> Struct
+### Generic Authorized Struct
 
 For operations that return values:
 
@@ -215,40 +189,28 @@ else
 public interface IPersonAuth
 {
     /// <summary>
-    /// General access check - called for all operations.
-    /// </summary>
-    [Authorize(AuthorizeOperation.Read | AuthorizeOperation.Write)]
-    Authorized HasAccess();
-
-    /// <summary>
     /// Permission to create new persons.
     /// </summary>
-    [Authorize(AuthorizeOperation.Create)]
-    Authorized HasCreate();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+    Authorized CanCreate();
 
     /// <summary>
     /// Permission to read/fetch persons.
     /// </summary>
-    [Authorize(AuthorizeOperation.Read)]
-    Authorized HasFetch();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Fetch)]
+    Authorized CanFetch();
 
     /// <summary>
     /// Permission to update existing persons.
     /// </summary>
-    [Authorize(AuthorizeOperation.Write)]
-    Authorized HasUpdate();
-
-    /// <summary>
-    /// Permission to insert new persons (during save).
-    /// </summary>
-    [Authorize(AuthorizeOperation.Create | AuthorizeOperation.Write)]
-    Authorized HasInsert();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Update)]
+    Authorized CanUpdate();
 
     /// <summary>
     /// Permission to delete persons.
     /// </summary>
-    [Authorize(AuthorizeOperation.Execute)]
-    Authorized HasDelete();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Delete)]
+    Authorized CanDelete();
 }
 ```
 
@@ -264,15 +226,7 @@ public class PersonAuth : IPersonAuth
         _user = user ?? throw new ArgumentNullException(nameof(user));
     }
 
-    public Authorized HasAccess()
-    {
-        if (_user.Role <= Role.None)
-            return Authorized.No("You must be logged in to access person records.");
-
-        return Authorized.Yes;
-    }
-
-    public Authorized HasCreate()
+    public Authorized CanCreate()
     {
         if (_user.Role < Role.Admin)
             return Authorized.No("Only administrators can create new persons.");
@@ -280,7 +234,7 @@ public class PersonAuth : IPersonAuth
         return Authorized.Yes;
     }
 
-    public Authorized HasFetch()
+    public Authorized CanFetch()
     {
         if (_user.Role < Role.User)
             return Authorized.No("You don't have permission to view person records.");
@@ -288,7 +242,7 @@ public class PersonAuth : IPersonAuth
         return Authorized.Yes;
     }
 
-    public Authorized HasUpdate()
+    public Authorized CanUpdate()
     {
         if (_user.Role < Role.Editor)
             return Authorized.No("You don't have permission to edit person records.");
@@ -296,15 +250,7 @@ public class PersonAuth : IPersonAuth
         return Authorized.Yes;
     }
 
-    public Authorized HasInsert()
-    {
-        if (_user.Role < Role.Admin)
-            return Authorized.No("Only administrators can add new persons.");
-
-        return Authorized.Yes;
-    }
-
-    public Authorized HasDelete()
+    public Authorized CanDelete()
     {
         if (_user.Role < Role.Admin)
             return Authorized.No("Only administrators can delete persons.");
@@ -448,7 +394,7 @@ builder.Services.AddScoped<IPersonAuth, PersonAuth>();
 
 ## Generated Factory Methods
 
-When `[Authorize<T>]` is applied, the factory includes authorization checks and CanXYZ methods:
+When `[AuthorizeFactory<T>]` is applied, the factory includes authorization checks and CanXYZ methods:
 
 ```csharp
 public interface IPersonFactory
@@ -650,15 +596,15 @@ public enum Role
 
 public class PersonAuth : IPersonAuth
 {
-    public Authorized HasRead() =>
+    public Authorized CanFetch() =>
         _user.Role >= Role.Guest ? Authorized.Yes
             : Authorized.No("Guests and above can view.");
 
-    public Authorized HasWrite() =>
+    public Authorized CanUpdate() =>
         _user.Role >= Role.Editor ? Authorized.Yes
             : Authorized.No("Editors and above can modify.");
 
-    public Authorized HasCreate() =>
+    public Authorized CanCreate() =>
         _user.Role >= Role.Admin ? Authorized.Yes
             : Authorized.No("Admins and above can create.");
 }
@@ -678,7 +624,7 @@ public class PersonAuth : IPersonAuth
         _person = context.Current;
     }
 
-    public Authorized HasUpdate()
+    public Authorized CanUpdate()
     {
         // Admins can update anyone
         if (_user.Role >= Role.Admin)
@@ -707,7 +653,7 @@ public class PersonAuth : IPersonAuth
         _features = features;
     }
 
-    public Authorized HasCreate()
+    public Authorized CanCreate()
     {
         if (!_features.IsEnabled("PersonCreation"))
             return Authorized.No("Person creation is currently disabled.");

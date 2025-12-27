@@ -62,19 +62,19 @@ public class PersonAuth : IPersonAuth
 
     public PersonAuth(IUser user) => _user = user;
 
-    [Authorize(AuthorizeOperation.Create)]
-    public bool HasCreate() => _user.Role >= Role.Admin;
+    [AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+    public bool CanCreate() => _user.Role >= Role.Admin;
 
-    [Authorize(AuthorizeOperation.Read)]
-    public bool HasRead() => _user.Role >= Role.User;
+    [AuthorizeFactory(AuthorizeFactoryOperation.Fetch)]
+    public bool CanFetch() => _user.Role >= Role.User;
 
-    [Authorize(AuthorizeOperation.Write)]
-    public bool HasWrite() => _user.Role >= Role.Editor;
+    [AuthorizeFactory(AuthorizeFactoryOperation.Update)]
+    public bool CanUpdate() => _user.Role >= Role.Editor;
 }
 
 // Link to entity
 [Factory]
-[Authorize<IPersonAuth>]
+[AuthorizeFactory<IPersonAuth>]
 internal partial class Person : EntityBase<Person>, IPerson
 {
     // Factory methods are automatically authorized
@@ -93,29 +93,26 @@ An authorization class contains methods that determine whether operations are pe
 
 ### Interface Definition
 
-Define an interface with methods decorated with `[Authorize]`:
+Define an interface with methods decorated with `[AuthorizeFactory]`:
 
 ```csharp
 public interface IPersonAuth
 {
-    [Authorize(AuthorizeOperation.Read | AuthorizeOperation.Write)]
-    bool HasAccess();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+    bool CanCreate();
 
-    [Authorize(AuthorizeOperation.Create)]
-    bool HasCreate();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Fetch)]
+    bool CanFetch();
 
-    [Authorize(AuthorizeOperation.Read)]
-    bool HasRead();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Update)]
+    bool CanUpdate();
 
-    [Authorize(AuthorizeOperation.Write)]
-    bool HasWrite();
-
-    [Authorize(AuthorizeOperation.Execute)]
-    bool HasDelete();
+    [AuthorizeFactory(AuthorizeFactoryOperation.Delete)]
+    bool CanDelete();
 }
 ```
 
-The `[Authorize]` attribute specifies which operations trigger each method.
+The `[AuthorizeFactory]` attribute specifies which operations trigger each method.
 
 ### Implementation Class
 
@@ -131,31 +128,25 @@ public class PersonAuth : IPersonAuth
         _user = user;
     }
 
-    public bool HasAccess()
-    {
-        // Any authenticated user can access
-        return _user.Role > Role.None;
-    }
-
-    public bool HasCreate()
+    public bool CanCreate()
     {
         // Only admins can create
         return _user.Role >= Role.Admin;
     }
 
-    public bool HasRead()
+    public bool CanFetch()
     {
         // Users and above can read
         return _user.Role >= Role.User;
     }
 
-    public bool HasWrite()
+    public bool CanUpdate()
     {
         // Editors and above can modify
         return _user.Role >= Role.Editor;
     }
 
-    public bool HasDelete()
+    public bool CanDelete()
     {
         // Only admins can delete
         return _user.Role >= Role.Admin;
@@ -175,13 +166,13 @@ builder.Services.AddScoped<IPersonAuth, PersonAuth>();
 builder.Services.AddScoped<IUser, User>();
 ```
 
-## The Authorize Attribute on Entities
+## The AuthorizeFactory Attribute on Entities
 
-Link your authorization class to an entity using the `[Authorize<T>]` attribute:
+Link your authorization class to an entity using the `[AuthorizeFactory<T>]` attribute:
 
 ```csharp
 [Factory]
-[Authorize<IPersonAuth>]
+[AuthorizeFactory<IPersonAuth>]
 internal partial class Person : EntityBase<Person>, IPerson
 {
     // All factory operations are now authorized
@@ -212,13 +203,13 @@ internal partial class Person : EntityBase<Person>, IPerson
 
 The generated factory calls authorization methods based on the operation type:
 
-| Factory Operation | AuthorizeOperation Components | Methods Called |
-|-------------------|------------------------------|----------------|
-| `Create()` | `Read \| Create` | `HasAccess()`, `HasCreate()` |
-| `Fetch()` | `Read` | `HasAccess()`, `HasRead()` |
-| `Save()` (Insert) | `Read \| Create \| Write` | `HasAccess()`, `HasCreate()`, `HasWrite()` |
-| `Save()` (Update) | `Read \| Write` | `HasAccess()`, `HasWrite()` |
-| `Save()` (Delete) | `Read \| Execute` | `HasAccess()`, `HasDelete()` |
+| Factory Operation | Authorization Method Called |
+|-------------------|----------------------------|
+| `Create()` | `CanCreate()` |
+| `Fetch()` | `CanFetch()` |
+| `Save()` (Insert) | `CanCreate()` |
+| `Save()` (Update) | `CanUpdate()` |
+| `Save()` (Delete) | `CanDelete()` |
 
 If any called method returns `false`, the operation is denied.
 
@@ -291,12 +282,12 @@ Authorization methods can return `bool` (simple) or `Authorized` (with message):
 
 ```csharp
 // Simple boolean
-[Authorize(AuthorizeOperation.Create)]
-public bool HasCreate() => _user.IsAdmin;
+[AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+public bool CanCreate() => _user.IsAdmin;
 
 // With message
-[Authorize(AuthorizeOperation.Create)]
-public Authorized HasCreate()
+[AuthorizeFactory(AuthorizeFactoryOperation.Create)]
+public Authorized CanCreate()
 {
     if (_user.IsAdmin)
         return Authorized.Yes;
@@ -494,7 +485,7 @@ public class PersonController : Controller
 ```csharp
 // Authorization defined once
 [Factory]
-[Authorize<IPersonAuth>]
+[AuthorizeFactory<IPersonAuth>]
 internal partial class Person : EntityBase<Person>, IPerson
 {
     // All operations automatically authorized
@@ -515,9 +506,9 @@ Structure authorization around roles for maintainability:
 ```csharp
 public class PersonAuth : IPersonAuth
 {
-    public bool HasCreate() => _user.Role >= Role.Admin;
-    public bool HasRead() => _user.Role >= Role.User;
-    public bool HasWrite() => _user.Role >= Role.Editor;
+    public bool CanCreate() => _user.Role >= Role.Admin;
+    public bool CanFetch() => _user.Role >= Role.User;
+    public bool CanUpdate() => _user.Role >= Role.Editor;
 }
 ```
 
@@ -526,7 +517,7 @@ public class PersonAuth : IPersonAuth
 Return `Authorized` with explanations for better UX:
 
 ```csharp
-public Authorized HasDelete()
+public Authorized CanDelete()
 {
     if (_user.Role < Role.Admin)
         return Authorized.No("Only administrators can delete records.");

@@ -13,11 +13,10 @@ This is a brief overview of [EntityBase](https://github.com/NeatooDotNet/Neatoo/
 ## Class Declaration
 
 ``` csharp
-internal partial class Person : IdEntityBase<Person>, IPerson
+internal partial class Person : EntityBase<Person>, IPerson
 ```
 
-- Entities inherit from Neatoo.EntityBase<T> defining themself as T
-  - [IdEntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/IdEntityBase.cs) inherits from Neatoo.EntityBase. It contains shared logic.
+- Entities inherit from `Neatoo.EntityBase<T>` defining themselves as T
 - Partial is required for Neatoo to generate property definitions and MapTo/MapFrom/etc methods
 
 

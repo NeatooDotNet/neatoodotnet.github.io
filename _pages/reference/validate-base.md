@@ -1,5 +1,5 @@
 ---
-title: "ValidateBase<T> Reference"
+title: "ValidateBase Reference"
 layout: single
 permalink: /reference/validate-base/
 toc: true
@@ -14,14 +14,14 @@ sidebar:
 
 The choice between `ValidateBase<T>` and `EntityBase<T>` depends on whether you need persistence tracking.
 
-### Use EntityBase<T> When
+### Use EntityBase When
 
 - The object represents a domain entity that will be persisted
 - You need `IsNew`, `IsModified`, `IsDeleted` tracking
 - The object participates in `Save()` operations
 - Changes need to be tracked for database updates
 
-### Use ValidateBase<T> When
+### Use ValidateBase When
 
 - The object needs validation but not persistence tracking
 - The object represents a transient form or wizard step
@@ -748,7 +748,7 @@ internal partial class ProductSearchForm
 ## Related Topics
 
 - [EntityBase Reference](/reference/entity-base/) - Full entity with persistence
-- [Base<T> and Value Objects](/reference/base-value-objects/) - Simplest base class
+- [Base and Value Objects](/reference/base-value-objects/) - Simplest base class
 - [Rules Engine Reference](/reference/rules/) - Validation rules
 - [Properties and Meta-Properties](/concepts/properties/) - Property system
 - [Blazor Integration](/guides/blazor-integration/) - UI binding patterns

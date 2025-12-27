@@ -41,13 +41,13 @@ central:
 
   - title: "Reference"
     children:
-      - title: "EntityBase<T>"
+      - title: "EntityBase"
         url: /reference/entity-base/
-      - title: "ValidateBase<T>"
+      - title: "ValidateBase"
         url: /reference/validate-base/
-      - title: "Base<T> & Value Objects"
+      - title: "Base & Value Objects"
         url: /reference/base-value-objects/
-      - title: "EntityListBase<I>"
+      - title: "EntityListBase"
         url: /reference/entity-list-base/
       - title: "Rules Engine"
         url: /reference/rules/

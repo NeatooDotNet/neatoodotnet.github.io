@@ -14,7 +14,7 @@ The Neatoo rules engine provides trigger-based business rule execution for valid
 
 Neatoo provides two abstract base classes for creating rules:
 
-### RuleBase<T>
+### RuleBase
 
 For synchronous rules that do not require async operations:
 
@@ -43,7 +43,7 @@ Key characteristics:
 - Return `None` when validation passes
 - Return `IRuleMessages` when validation fails
 
-### AsyncRuleBase<T>
+### AsyncRuleBase
 
 For rules requiring database access, API calls, or other async operations:
 

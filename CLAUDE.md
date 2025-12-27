@@ -48,3 +48,12 @@ When editing documentation:
 - Reference the main Neatoo repo at `https://github.com/NeatooDotNet/Neatoo`
 - Link to source files in the main repo for code examples
 - Follow existing front matter patterns in `_pages/`
+
+### Neatoo vs RemoteFactory Terminology
+
+**Important**: For this documentation site, treat "Neatoo + RemoteFactory" as simply "Neatoo". While RemoteFactory is technically a separable component, this site assumes users are using the full Neatoo framework.
+
+- Refer to features (Value Objects, Authorization, etc.) as "Neatoo" features
+- The separability of RemoteFactory should only be documented on its own dedicated page
+- Do not distinguish between Neatoo and RemoteFactory elsewhere in the documentation
+- The individual `/docs` folders in the Neatoo and RemoteFactory repositories handle their respective specific documentation

@@ -19,7 +19,7 @@ This is a brief overview of a Neatoo Rule to be used with an Entity using [Uniqu
 ``` csharp
 internal class UniqueNameRule : AsyncRuleBase<IPerson>, IUniqueNameRule
 ```
-- Inherit from AsyncRuleBase<T> for Async Task Rules and RuleBase<T> otherwise
+- Inherit from `AsyncRuleBase<T>` for Async Task Rules and `RuleBase<T>` otherwise
 - T is the target of the rule. In this case the target T is IPerson
 - For shared rules use a common interface as the type T.
 

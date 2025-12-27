@@ -101,20 +101,29 @@ Common examples include:
 - Date ranges (start + end)
 - Measurements (quantity + unit)
 
-Value objects should be immutable after creation. In Neatoo, use `Base<T>`:
+Value objects should be immutable after creation. In Neatoo, use plain classes with the `[Factory]` attribute:
 
 ```csharp
 [Factory]
-internal partial class Address : Base<Address>, IAddress
+public class Address
 {
-    public Address(IBaseServices<Address> services) : base(services) { }
+    public string? Street { get; private set; }
+    public string? City { get; private set; }
+    public string? PostalCode { get; private set; }
+    public string? Country { get; private set; }
 
-    public partial string? Street { get; set; }
-    public partial string? City { get; set; }
-    public partial string? PostalCode { get; set; }
-    public partial string? Country { get; set; }
+    [Create]
+    public void Create(string street, string city, string postalCode, string country)
+    {
+        Street = street;
+        City = city;
+        PostalCode = postalCode;
+        Country = country;
+    }
 }
 ```
+
+See [Value Objects Reference](/reference/base-value-objects/) for complete details.
 
 ### Aggregates
 
@@ -197,44 +206,45 @@ See [Rules Philosophy](/concepts/rules-philosophy/) and [Rules Engine Reference]
 
 ## How Neatoo Maps to DDD Patterns
 
-| DDD Concept | Neatoo Implementation |
-|-------------|----------------------|
+| DDD Concept | Implementation |
+|-------------|---------------|
 | **Entity** | `EntityBase<T>` - Full lifecycle tracking, persistence awareness |
-| **Value Object** | `Base<T>` - Property management without persistence tracking |
-| **Validated Object** | `ValidateBase<T>` - Validation without persistence (wizard steps, forms) |
+| **Value Object** | Plain class with `[Factory]` |
+| **Validated Object** | `ValidateBase<T>` - Validation without persistence (wizard steps, criteria) |
 | **Aggregate** | Entity graph with parent-child relationships |
 | **Aggregate Root** | Top-level `EntityBase<T>` (where `IsChild == false`) |
 | **Business Rule** | `RuleBase<T>` or `AsyncRuleBase<T>` |
-| **Factory** | Generated from `[Factory]` attribute with `[Create]`, `[Fetch]`, `[Insert]`, `[Update]`, `[Delete]` methods |
+| **Factory** | Generated from `[Factory]` attribute |
+| **Authorization** | `[AuthorizeFactory<T>]` attribute |
 | **Repository** | Factory methods combined with EF Core DbContext |
 
 ### Class Hierarchy
 
-Neatoo provides three base classes in ascending order of capability:
+Neatoo provides base classes in ascending order of capability:
 
 ```
-Base<T>
-  └── ValidateBase<T>
-        └── EntityBase<T>
+Plain class with [Factory]  (Value Objects)
+
+ValidateBase<T>  (Validation without persistence)
+    └── EntityBase<T>  (Full persistence tracking)
 ```
 
-| Base Class | Use When |
-|------------|----------|
-| `Base<T>` | Value objects, simple bindable objects without validation |
+| Approach | Use When |
+|----------|----------|
+| Plain class + `[Factory]` | Value Objects, simple factory-created objects |
 | `ValidateBase<T>` | Objects needing validation but not persistence (wizard steps, search criteria) |
 | `EntityBase<T>` | Full domain entities with identity, modification tracking, and persistence |
 
 ### Critical Hierarchy Rule
 
-You cannot place an `EntityBase` under a `Base`. This would break modification tracking propagation. Valid nesting patterns:
+When using Neatoo's entity system, you cannot place an `EntityBase` under an object that does not propagate modification tracking. Valid nesting patterns:
 
 - `EntityBase` containing `EntityBase` (parent-child entities)
-- `EntityBase` containing `Base` (entity containing value objects)
-- `Base` containing `Base` (value objects containing value objects)
+- `EntityBase` containing Value Objects (entity containing value objects as leaf nodes)
 
 Invalid pattern:
 
-- `Base` containing `EntityBase` - modification tracking cannot propagate through value objects
+- Value Object containing `EntityBase` - modification tracking cannot propagate through value objects
 
 ## The Neatoo Advantage
 
