@@ -378,6 +378,185 @@ Do not use `[Remote]` when:
 - All required data is already present on the client
 - Responsiveness is critical and no server access is needed
 
+## Commands and Queries
+
+Beyond entity lifecycle operations, Neatoo supports a Command/Query pattern for operations that don't fit the standard CRUD model. This is implemented using the `[Execute]` attribute on factory classes.
+
+### When to Use Commands and Queries
+
+Use Commands and Queries when you need to:
+
+- Perform database lookups for validation (email uniqueness, username availability)
+- Execute server-side operations that aren't tied to a specific entity
+- Implement request/response patterns for specific business operations
+- Create reusable server-side services callable from the client
+
+### Basic Pattern
+
+Create a result class with the `[Factory]` attribute and an `[Execute]` method:
+
+```csharp
+// The result class holds the query response
+public interface ICheckEmailExistsResult
+{
+    bool Exists { get; }
+}
+
+[Factory]
+public class CheckEmailExistsResult : ICheckEmailExistsResult
+{
+    public bool Exists { get; set; }
+
+    [Remote]
+    [Execute]
+    public async Task Execute(
+        string email,
+        Guid? excludeId,
+        [Service] IDbContext db)
+    {
+        Exists = await db.Persons
+            .Where(p => p.Email == email)
+            .Where(p => p.Id != excludeId)
+            .AnyAsync();
+    }
+}
+```
+
+### Generated Factory Interface
+
+Neatoo generates a factory with a delegate for the execute operation:
+
+```csharp
+// Generated
+public interface ICheckEmailExistsResultFactory
+{
+    // Delegate property for calling the operation
+    CheckEmailExistsDelegate CheckEmailExists { get; }
+}
+
+// Generated delegate type
+public delegate Task<ICheckEmailExistsResult> CheckEmailExistsDelegate(
+    string email,
+    Guid? excludeId);
+```
+
+### Usage
+
+Inject the factory and call the delegate:
+
+```csharp
+public class UniqueEmailRule : AsyncRuleBase<Person>, IUniqueEmailRule
+{
+    private readonly CheckEmailExistsDelegate _checkEmail;
+
+    public UniqueEmailRule(ICheckEmailExistsResultFactory factory)
+        : base(p => p.Email)
+    {
+        _checkEmail = factory.CheckEmailExists;
+    }
+
+    protected override async Task<IRuleMessages> Execute(
+        Person target,
+        CancellationToken? token = null)
+    {
+        if (string.IsNullOrEmpty(target.Email))
+            return None;
+
+        var result = await _checkEmail(target.Email, target.Id);
+
+        return result.Exists
+            ? (nameof(target.Email), "Email already in use").AsRuleMessages()
+            : None;
+    }
+}
+```
+
+### Query vs Command
+
+While both use `[Execute]`, the intent differs:
+
+| Type | Purpose | Modifies Data | Example |
+|------|---------|---------------|---------|
+| Query | Retrieve information | No | Check email availability |
+| Command | Perform action | Yes | Send notification, update status |
+
+**Query Example:**
+
+```csharp
+[Factory]
+public class GetUserStatsResult : IGetUserStatsResult
+{
+    public int TotalOrders { get; set; }
+    public decimal LifetimeValue { get; set; }
+    public DateTime? LastOrderDate { get; set; }
+
+    [Remote]
+    [Execute]
+    public async Task Execute(Guid userId, [Service] IDbContext db)
+    {
+        var stats = await db.Orders
+            .Where(o => o.UserId == userId)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                Total = g.Sum(o => o.Total),
+                LastOrder = g.Max(o => o.OrderDate)
+            })
+            .FirstOrDefaultAsync();
+
+        if (stats != null)
+        {
+            TotalOrders = stats.Count;
+            LifetimeValue = stats.Total;
+            LastOrderDate = stats.LastOrder;
+        }
+    }
+}
+```
+
+**Command Example:**
+
+```csharp
+[Factory]
+public class SendWelcomeEmailResult : ISendWelcomeEmailResult
+{
+    public bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+
+    [Remote]
+    [Execute]
+    public async Task Execute(
+        string email,
+        string firstName,
+        [Service] IEmailService emailService)
+    {
+        try
+        {
+            await emailService.SendWelcomeEmailAsync(email, firstName);
+            Success = true;
+        }
+        catch (Exception ex)
+        {
+            Success = false;
+            ErrorMessage = ex.Message;
+        }
+    }
+}
+```
+
+### Benefits Over Direct Service Calls
+
+Using the Command/Query pattern with `[Execute]` instead of direct service injection provides:
+
+1. **Automatic serialization** - Results serialize correctly across client-server boundary
+2. **Authorization integration** - Add `[AuthorizeFactory]` for access control
+3. **Consistent error handling** - Framework handles exceptions uniformly
+4. **Testability** - Inject mock factories in tests
+5. **Discoverability** - All remote operations visible through factory interfaces
+
+For a complete guide on using Commands for validation, see [Database-Dependent Validation](/guides/database-validation/).
+
 ### 3-Tier Architecture
 
 Neatoo's `[Remote]` attribute enables a clean 3-tier architecture:

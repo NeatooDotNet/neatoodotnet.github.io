@@ -474,36 +474,197 @@ RuleManager.AddActionAsync(
 
 ## Data Annotation Attributes
 
-Standard validation attributes are automatically converted to rules:
+Neatoo integrates with standard .NET `System.ComponentModel.DataAnnotations` attributes. These are automatically converted to synchronous validation rules that execute when the decorated property changes.
+
+### Supported Attributes
+
+The following DataAnnotations are fully supported:
 
 ```csharp
+// Required - value must not be null or empty
 [Required(ErrorMessage = "First name is required")]
 public partial string? FirstName { get; set; }
 
+// StringLength - string length constraints
 [Required]
 [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be 2-100 characters")]
 public partial string? LastName { get; set; }
 
+// EmailAddress - email format validation
 [EmailAddress(ErrorMessage = "Invalid email format")]
 public partial string? Email { get; set; }
 
+// Range - numeric range validation
 [Range(0, 150, ErrorMessage = "Age must be between 0 and 150")]
 public partial int Age { get; set; }
 
+// RegularExpression - pattern matching
 [RegularExpression(@"^\d{5}(-\d{4})?$", ErrorMessage = "Invalid ZIP code")]
 public partial string? ZipCode { get; set; }
+
+// MinLength/MaxLength - collection and string size
+[MinLength(1, ErrorMessage = "At least one item required")]
+public partial IList<string>? Tags { get; set; }
+
+// Compare - cross-property comparison
+[Compare(nameof(Password), ErrorMessage = "Passwords must match")]
+public partial string? ConfirmPassword { get; set; }
 ```
 
-Supported attributes:
+### Complete Attribute Reference
 
-| Attribute | Purpose |
-|-----------|---------|
-| `[Required]` | Value must not be null or empty |
-| `[StringLength]` | String length constraints |
-| `[Range]` | Numeric range validation |
-| `[EmailAddress]` | Email format validation |
-| `[RegularExpression]` | Pattern matching |
-| `[Compare]` | Cross-property comparison |
+| Attribute | Purpose | Applies To |
+|-----------|---------|------------|
+| `[Required]` | Value must not be null or empty | Any type |
+| `[StringLength]` | Min/max string length | `string` |
+| `[MinLength]` | Minimum length | `string`, collections |
+| `[MaxLength]` | Maximum length | `string`, collections |
+| `[Range]` | Numeric range (min, max) | Numeric types, `DateTime` |
+| `[EmailAddress]` | Email format validation | `string` |
+| `[RegularExpression]` | Regex pattern matching | `string` |
+| `[Compare]` | Equality with another property | Any type |
+
+### How Attribute Validation Works
+
+When you apply a validation attribute to a partial property:
+
+1. **Source Generator Detects** - The Neatoo source generator finds attributes on partial properties
+2. **Rule Created** - A sync validation rule is generated for each attribute
+3. **Trigger Set** - The rule triggers when the decorated property changes
+4. **Validation Runs** - On property change, the attribute validation executes
+5. **Message Set** - If validation fails, the error message is added to `PropertyMessages`
+
+```csharp
+// What you write
+[Required(ErrorMessage = "Name is required")]
+[StringLength(50, ErrorMessage = "Name too long")]
+public partial string? Name { get; set; }
+
+// What Neatoo effectively generates (conceptually)
+// Rule 1: Required check
+// Rule 2: StringLength check
+// Both trigger on Name property changes
+```
+
+### Custom Error Messages
+
+All attributes support custom error messages via the `ErrorMessage` property:
+
+```csharp
+[Required(ErrorMessage = "Please enter your email address")]
+[EmailAddress(ErrorMessage = "That doesn't look like a valid email")]
+public partial string? Email { get; set; }
+```
+
+If you omit `ErrorMessage`, a default message is used.
+
+### Combining Attributes with Custom Rules
+
+Attributes work alongside custom rules. Use attributes for simple format validation and custom rules for complex business logic:
+
+```csharp
+[Factory]
+internal partial class Person : EntityBase<Person>, IPerson
+{
+    public Person(
+        IEntityBaseServices<Person> services,
+        IUniqueEmailRule uniqueEmailRule) : base(services)
+    {
+        // Custom async rule for database validation
+        RuleManager.AddRule(uniqueEmailRule);
+    }
+
+    // Attribute handles format, custom rule handles uniqueness
+    [Required(ErrorMessage = "Email is required")]
+    [EmailAddress(ErrorMessage = "Invalid email format")]
+    public partial string? Email { get; set; }
+}
+```
+
+Execution order:
+1. Attribute-based rules run first (sync)
+2. Custom sync rules run next
+3. Custom async rules run last
+
+### DisplayName Attribute
+
+The `[DisplayName]` attribute provides a user-friendly name for UI binding:
+
+```csharp
+[DisplayName("First Name*")]
+[Required(ErrorMessage = "First name is required")]
+public partial string? FirstName { get; set; }
+```
+
+This is used by UI components like MudNeatoo for labels:
+
+```razor
+@* Uses DisplayName for the label *@
+<MudNeatooTextField For="() => person.FirstName" />
+```
+
+### Limitations of Attribute Validation
+
+Attribute validation has inherent limitations:
+
+| Limitation | Solution |
+|------------|----------|
+| No async operations | Use `AsyncRuleBase<T>` for database checks |
+| No cross-property complex logic | Use `RuleBase<T>` with multiple triggers |
+| No contextual/conditional logic | Use custom rules with DI services |
+| Single error message per attribute | Return multiple messages from custom rules |
+
+### Example: Comprehensive Property Validation
+
+Combining attributes with inline and custom rules:
+
+```csharp
+[Factory]
+internal partial class Registration : EntityBase<Registration>, IRegistration
+{
+    public Registration(
+        IEntityBaseServices<Registration> services,
+        IUsernameAvailableRule usernameRule) : base(services)
+    {
+        // Async rule for database check
+        RuleManager.AddRule(usernameRule);
+
+        // Inline rule for password strength
+        RuleManager.AddValidation(
+            nameof(Password),
+            (Registration r) =>
+            {
+                if (string.IsNullOrEmpty(r.Password)) return RuleMessage.None;
+                if (!r.Password.Any(char.IsUpper))
+                    return RuleMessage.Error("Password needs an uppercase letter");
+                if (!r.Password.Any(char.IsDigit))
+                    return RuleMessage.Error("Password needs a number");
+                return RuleMessage.None;
+            });
+    }
+
+    // Attribute: format and length
+    [Required(ErrorMessage = "Username is required")]
+    [StringLength(30, MinimumLength = 3, ErrorMessage = "Username must be 3-30 characters")]
+    [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Letters, numbers, and underscores only")]
+    public partial string? Username { get; set; }
+
+    // Attribute: basic requirement
+    [Required(ErrorMessage = "Password is required")]
+    [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+    public partial string? Password { get; set; }
+
+    // Attribute: cross-property comparison
+    [Required(ErrorMessage = "Please confirm your password")]
+    [Compare(nameof(Password), ErrorMessage = "Passwords do not match")]
+    public partial string? ConfirmPassword { get; set; }
+
+    // Attribute: format
+    [Required(ErrorMessage = "Email is required")]
+    [EmailAddress(ErrorMessage = "Invalid email format")]
+    public partial string? Email { get; set; }
+}
+```
 
 ## Running Rules Manually
 

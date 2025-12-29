@@ -59,11 +59,17 @@ central:
         url: /reference/authorization/
       - title: "Dependency Injection"
         url: /reference/dependency-injection/
+      - title: "Exception Handling"
+        url: /reference/exceptions/
 
   - title: "Guides"
     children:
       - title: "Blazor Integration"
         url: /guides/blazor-integration/
+      - title: "Database-Dependent Validation"
+        url: /guides/database-validation/
+      - title: "Troubleshooting"
+        url: /guides/troubleshooting/
 
   - title: "Examples"
     children:
