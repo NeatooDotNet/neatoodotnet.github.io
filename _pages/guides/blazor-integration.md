@@ -529,7 +529,8 @@ A robust save button implementation should:
             _isSaving = true;
             StateHasChanged();
 
-            await PersonFactory.Save(_person);
+            // CRITICAL: Reassign to capture the new deserialized instance
+            _person = await PersonFactory.Save(_person);
 
             // Navigate on success
             NavigationManager.NavigateTo("/persons");
@@ -561,6 +562,78 @@ public virtual bool IsSavable => IsModified && IsValid && !IsBusy && !IsChild;
 ```
 
 Using `WaitForTasks()` ensures all rules have completed and `IsValid` reflects the true validation state.
+
+## Critical: Reassign After Save() in Blazor Components
+
+In Blazor, failing to reassign after `Save()` causes the UI to display stale data. This is one of the most common mistakes when integrating Neatoo with Blazor.
+
+### Why This Matters for Blazor
+
+When `Save()` completes, a **completely new object instance** is returned. If you don't reassign:
+
+1. **UI shows stale data** - The bound `_person` object has old values
+2. **ID fields are wrong** - Database-generated IDs won't appear
+3. **State is incorrect** - `IsModified`, `IsDirty` reflect pre-save state
+4. **Subsequent saves may fail** - Concurrency tokens are outdated
+
+### Common Mistake Pattern
+
+```razor
+@code {
+    private IPerson? _person;
+
+    // DON'T DO THIS
+    private async Task HandleSave()
+    {
+        await PersonFactory.Save(_person);  // Return value discarded!
+
+        // _person still shows:
+        // - Id = Guid.Empty (if new)
+        // - IsModified = true (should be false)
+        // - Old property values if server modified them
+
+        NavigationManager.NavigateTo($"/person/{_person.Id}");  // Navigates to empty GUID!
+    }
+}
+```
+
+### Correct Pattern
+
+```razor
+@code {
+    private IPerson? _person;
+
+    // DO THIS
+    private async Task HandleSave()
+    {
+        if (_person is null || !_person.IsSavable) return;
+
+        // CRITICAL: Reassign to get the new deserialized instance
+        _person = await PersonFactory.Save(_person);
+
+        // The UI will now show:
+        // - Database-generated ID
+        // - Server-computed values
+        // - Reset modification state (IsModified = false)
+
+        NavigationManager.NavigateTo($"/person/{_person.Id}");  // Works correctly
+    }
+}
+```
+
+### Understanding the Serialization Boundary
+
+The `Save()` method:
+1. Serializes `_person` to the server
+2. Server creates a new instance from that data
+3. Server performs persistence, updating IDs and timestamps
+4. Server serializes the updated entity back
+5. Client deserializes into a **NEW object instance**
+6. `Save()` returns this new instance
+
+Your original `_person` variable still points to the old object. You must reassign to capture the new one.
+
+See also: [Factory Operations - Critical: Always Reassign After Save](/reference/factory-operations/#critical-always-reassign-after-save) for more details on why this pattern is required.
 
 ## Collection Binding with Tables
 

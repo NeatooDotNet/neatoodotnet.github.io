@@ -39,10 +39,37 @@ Track which commits from each repository this documentation site is synchronized
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | `2d1d343` | 2025-12-28 |
-| RemoteFactory | `b1a93de` | 2025-12-28 |
+| Neatoo | `a16fb5b` | 2025-12-29 |
+| RemoteFactory | `cb0db17` | 2025-12-29 |
 
 When updating documentation, review commits since the last sync and update this table.
+
+## Neatoo Skill Maintenance
+
+A shared Neatoo skill file exists at the user level for Claude Code:
+
+**Location**: `~/.claude/skills/neatoo.md`
+
+This skill provides Claude with Neatoo framework knowledge across all projects. When updating documentation from the Neatoo or RemoteFactory repositories, **also update the Neatoo skill** to keep it current.
+
+### Skill Commit Tracking
+
+Track which commits have been incorporated into the Neatoo skill:
+
+| Repository | Last Synced Commit | Date |
+|------------|-------------------|------|
+| Neatoo | `a16fb5b` | 2025-12-29 |
+| RemoteFactory | `cb0db17` | 2025-12-29 |
+
+### Update Checklist
+
+When syncing from the source repositories:
+
+1. Update the documentation site (`_pages/`)
+2. Update the Neatoo skill (`~/.claude/skills/neatoo.md`)
+3. Update **both** commit tracking tables (this site and the skill)
+
+The skill should contain the same core technical content as the reference documentation but formatted as a single comprehensive reference for Claude.
 
 ## Build Commands
 

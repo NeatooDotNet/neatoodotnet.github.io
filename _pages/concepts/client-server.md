@@ -521,6 +521,59 @@ The complete entity lifecycle through the 3-tier architecture:
 
 This diagram is also available as an animation on the [home page](/).
 
+## Object Identity After Remote Operations
+
+When using Remote Factory, understand that **remote operations return new object instances**.
+
+```csharp
+var person = await personFactory.Create();
+var originalReference = person;
+
+person = await personFactory.Save(person);
+
+// These are DIFFERENT objects
+Console.WriteLine(ReferenceEquals(originalReference, person));  // false
+```
+
+This occurs because:
+1. The object is serialized (converted to data)
+2. Transmitted to the server
+3. A new instance is created on the server
+4. Server performs the operation
+5. The result is serialized back
+6. A NEW instance is deserialized on the client
+
+### Implications for Your Code
+
+| Operation | Returns New Instance? | Must Reassign? |
+|-----------|----------------------|----------------|
+| `Create()` | Yes | Yes (to variable) |
+| `Fetch()` | Yes | Yes (to variable) |
+| `Save()` | Yes | **Yes - Critical!** |
+| `Delete()` | N/A | N/A |
+
+Always treat remote factory operations as returning fresh instances that must be captured.
+
+### Common Mistake
+
+```csharp
+// WRONG - loses the new instance
+await personFactory.Save(person);
+// person still references the OLD object with stale state
+
+// CORRECT - captures the new instance
+person = await personFactory.Save(person);
+// person now references the NEW object with updated state
+```
+
+This is especially important for:
+- **Database-generated IDs**: The new instance has the ID; the old one has `Guid.Empty`
+- **Server-computed values**: Timestamps, calculated fields
+- **State flags**: `IsNew`, `IsModified` are updated on the new instance
+- **Blazor binding**: The UI won't update if you don't reassign
+
+See [Factory Operations - Critical: Always Reassign After Save](/reference/factory-operations/#critical-always-reassign-after-save) and [Blazor Integration](/guides/blazor-integration/#critical-reassign-after-save-in-blazor-components) for more details.
+
 ## Configuration Summary
 
 ### Client Configuration

@@ -169,6 +169,58 @@ await lineFactory.Save(line);  // Throws - line.IsChild == true
 await orderFactory.Save(order);  // Saves entire aggregate
 ```
 
+### Stale Data After Save / UI Not Updating
+
+**Problem:** After calling `Save()`:
+- Database-generated ID is still empty/zero
+- UI shows old values
+- `IsModified` is still `true` when it should be `false`
+- Navigation to `/{id}` routes fail with empty ID
+
+**Solution:** You forgot to reassign the return value from `Save()`:
+
+```csharp
+// WRONG
+await personFactory.Save(person);
+// person is now stale - it's the PRE-save instance
+
+// CORRECT
+person = await personFactory.Save(person);
+// person is now the POST-save instance with updated state
+```
+
+**Why This Happens:**
+
+`Save()` uses the Remote Factory pattern which serializes your object to the server and deserializes a NEW instance back. The original object in memory is unchanged - it's a completely different object from what the server returns.
+
+Think of it like mailing a document:
+1. You write a document (your aggregate)
+2. You mail it (serialize to server)
+3. Someone adds information and mails it back (server persistence + serialize back)
+4. You receive a NEW document (deserialized instance)
+5. Your original draft is still on your desk unchanged (original object)
+
+**The Fix:**
+
+Always capture the return value:
+
+```csharp
+// In a Blazor component
+this._person = await PersonFactory.Save(this._person);
+
+// In a service/handler
+var savedPerson = await personFactory.Save(person);
+return savedPerson;
+
+// Chained operations
+person = await personFactory.Save(person);
+var id = person.Id;  // Now has the database-generated ID
+```
+
+See also:
+- [Factory Operations - Critical: Always Reassign After Save](/reference/factory-operations/#critical-always-reassign-after-save)
+- [Blazor Integration - Reassign After Save](/guides/blazor-integration/#critical-reassign-after-save-in-blazor-components)
+
 ## Validation Issues
 
 ### Validation Not Running

@@ -439,6 +439,44 @@ await personFactory.Save(existingPerson);
 
 **Throws:** `SaveOperationException` if entity is not savable (see `IsSavable`).
 
+### Critical: Always Reassign After Save()
+
+When you call `Save()`, the aggregate is **serialized to the server**, persisted, and a **new instance is returned** via deserialization. You MUST capture this return value:
+
+```csharp
+// CORRECT - captures the new deserialized instance
+person = await personFactory.Save(person);
+```
+
+```csharp
+// WRONG - original object is now stale!
+await personFactory.Save(person);
+// person still has old state, no database-generated values
+```
+
+#### Why This Happens
+
+The Remote Factory pattern transfers your object across the client-server boundary:
+
+1. **Client**: Your aggregate is serialized to JSON/binary
+2. **Server**: A new instance is created from that data, persistence runs
+3. **Server**: The updated aggregate is serialized back
+4. **Client**: A NEW instance is deserialized and returned
+
+The object you started with is **not the same object** that comes back. They are two different instances in memory.
+
+#### Consequences of Forgetting
+
+| What You Lose | Example |
+|---------------|---------|
+| Database-generated IDs | `person.Id` remains `Guid.Empty` or `0` |
+| Server-computed values | Timestamps, calculated fields |
+| Updated validation state | `IsValid`, `IsSavable` reflect old state |
+| Property modification flags | `IsModified` doesn't reflect saved state |
+| Concurrency tokens | RowVersion/ETag for optimistic concurrency |
+
+See also: [Blazor Integration - Reassign After Save](/guides/blazor-integration/#critical-reassign-after-save-in-blazor-components) for Blazor-specific guidance.
+
 ### TrySave()
 
 Like `Save()`, but returns authorization result instead of throwing:
