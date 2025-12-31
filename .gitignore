@@ -4,3 +4,4 @@ _site
 .jekyll-metadata
 vendor
 nul
+.claude/settings.local.json

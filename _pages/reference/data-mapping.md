@@ -8,14 +8,14 @@ sidebar:
     nav: "central"
 ---
 
-Neatoo generates data mapping methods that transfer property values between your domain entities and persistence entities. These methods handle the impedance mismatch between rich domain objects with behavior and flat database entities used by EF Core.
+Data mapping in Neatoo transfers property values between your domain entities and persistence entities. This is done through explicit property assignments in your factory methods, giving you full control over how data flows between your rich domain objects and flat database entities used by EF Core.
 
 ## The Data Mapping Challenge
 
-Without proper tooling, mapping between domain and persistence entities requires tedious, error-prone code:
+Without a clear pattern, mapping between domain and persistence entities requires scattered, error-prone code:
 
 ```csharp
-// Manual mapping - repetitive and easy to miss properties
+// Manual mapping - repetitive and easy to forget properties
 public void LoadFromDatabase(PersonEntity entity)
 {
     _id = entity.Id;
@@ -36,53 +36,17 @@ public void SaveToDatabase(PersonEntity entity)
 }
 ```
 
-Neatoo solves this by generating three mapping methods, each optimized for its use case.
+Neatoo solves this by providing:
 
-## Declaring Mapper Methods
+1. **`LoadProperty()`** - For loading data without triggering rules or modification tracking
+2. **Property indexer with `IsModified`** - For efficient updates that only write changed properties
+3. **A clear pattern** - Explicit property assignments in `[Fetch]`, `[Insert]`, and `[Update]` methods
 
-Declare mapper methods as `partial` methods in your entity class:
+## Loading Data in Fetch Operations
 
-```csharp
-[Factory]
-internal partial class Person : EntityBase<Person>, IPerson
-{
-    public partial Guid? Id { get; set; }
-    public partial string? FirstName { get; set; }
-    public partial string? LastName { get; set; }
-    public partial string? Email { get; set; }
+The `[Fetch]` method loads data from persistence into your domain entity. Use `LoadProperty()` to set values without triggering rules or modification flags.
 
-    // Mapper method declarations - implementations generated
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
-    public partial void MapModifiedTo(PersonEntity entity);
-}
-```
-
-The source generator creates implementations that:
-
-- Match properties by name between domain and persistence entities
-- Handle type conversions where possible
-- Respect `[MapperIgnore]` attributes
-- Use the correct value-setting mechanism for each scenario
-
-## MapFrom(entity)
-
-`MapFrom` loads data from a persistence entity into the domain entity. Used in `[Fetch]` operations.
-
-### Behavior
-
-```csharp
-public partial void MapFrom(PersonEntity entity);
-```
-
-The generated implementation:
-
-1. Copies matching property values from the source entity
-2. Uses `LoadProperty()` instead of property setters
-3. Does **not** trigger rules
-4. Does **not** set modification flags
-
-### Usage in Fetch
+### The LoadProperty() Method
 
 ```csharp
 [Remote]
@@ -92,157 +56,160 @@ public async Task<bool> Fetch([Service] IPersonDbContext dbContext)
     var entity = await dbContext.Persons.FindAsync(Id);
     if (entity == null) return false;
 
-    MapFrom(entity);  // Load all properties from database
+    // Load properties without triggering rules
+    LoadProperty(nameof(Id), entity.Id);
+    LoadProperty(nameof(FirstName), entity.FirstName);
+    LoadProperty(nameof(LastName), entity.LastName);
+    LoadProperty(nameof(Email), entity.Email);
+    LoadProperty(nameof(Phone), entity.Phone);
+
     return true;
 }
 ```
 
 ### Why LoadProperty?
 
-`MapFrom` uses `LoadProperty()` internally rather than property setters:
+`LoadProperty()` differs from property setters in important ways:
 
-```csharp
-// What MapFrom generates (conceptually):
-public partial void MapFrom(PersonEntity entity)
-{
-    LoadProperty(nameof(Id), entity.Id);          // No PropertyChanged
-    LoadProperty(nameof(FirstName), entity.FirstName);  // No rules triggered
-    LoadProperty(nameof(LastName), entity.LastName);    // No modification flag
-    LoadProperty(nameof(Email), entity.Email);
-}
-```
+| Aspect | Property Setter | LoadProperty() |
+|--------|-----------------|----------------|
+| PropertyChanged events | Yes | No |
+| Rules execution | Yes | No |
+| IsModified flag | Set to true | Not changed |
+| Use case | User edits | Database loads |
 
-This ensures:
+Using `LoadProperty()` ensures:
 
 - **No Rules Execute**: Data is loaded as-is from the database
 - **No Modification Tracking**: `IsModified` stays `false` after fetch
 - **No PropertyChanged Events**: UI updates happen after method completes
 - **Consistent State**: Entity reflects exactly what is in the database
 
-### Generated Code Example
-
-For a `Person` entity with a `PersonEntity` persistence class:
+### Complete Fetch Example
 
 ```csharp
-// Generated by source generator
-public partial void MapFrom(PersonEntity entity)
+[Remote]
+[Fetch]
+public async Task<bool> Fetch(
+    [Service] IPersonDbContext db,
+    [Service] IPersonPhoneListFactory phoneListFactory)
 {
-    if (entity == null) throw new ArgumentNullException(nameof(entity));
+    var entity = await db.Persons
+        .AsNoTracking()          // Optimization - no EF tracking needed
+        .Include(p => p.Phones)
+        .FirstOrDefaultAsync(p => p.Id == Id);
 
+    if (entity == null) return false;
+
+    // Load all scalar properties
     LoadProperty(nameof(Id), entity.Id);
     LoadProperty(nameof(FirstName), entity.FirstName);
     LoadProperty(nameof(LastName), entity.LastName);
     LoadProperty(nameof(Email), entity.Email);
     LoadProperty(nameof(Phone), entity.Phone);
-    // Properties with [MapperIgnore] are excluded
+    LoadProperty(nameof(CreatedDate), entity.CreatedDate);
+    LoadProperty(nameof(ModifiedDate), entity.ModifiedDate);
+    LoadProperty(nameof(RowVersion), entity.RowVersion);
+
+    // Child collection loaded by its factory
+    PersonPhoneList = await phoneListFactory.Fetch(entity.Phones);
+
+    return true;
 }
 ```
 
-## MapTo(entity)
+## Saving Data in Insert Operations
 
-`MapTo` copies all property values from the domain entity to a persistence entity. Used in `[Insert]` operations.
+The `[Insert]` method persists a new entity. Copy all property values to the persistence entity using direct assignment.
 
-### Behavior
-
-```csharp
-public partial void MapTo(PersonEntity entity);
-```
-
-The generated implementation:
-
-1. Copies **all** matching property values to the target entity
-2. Includes properties regardless of modification state
-3. Suitable for inserting new records
-
-### Usage in Insert
+### Insert Pattern
 
 ```csharp
 [Remote]
 [Insert]
-public async Task Insert([Service] IPersonDbContext dbContext)
+public async Task Insert([Service] IPersonDbContext db)
 {
     Id = Guid.NewGuid();
 
     var entity = new PersonEntity();
-    MapTo(entity);  // Copy ALL properties to new entity
 
-    dbContext.Persons.Add(entity);
-    await dbContext.SaveChangesAsync();
-}
-```
-
-### Why Copy Everything?
-
-For new entities, every property value needs to be persisted. There is no previous state to compare against.
-
-### Generated Code Example
-
-```csharp
-// Generated by source generator
-public partial void MapTo(PersonEntity entity)
-{
-    if (entity == null) throw new ArgumentNullException(nameof(entity));
-
-    entity.Id = Id;
+    // Copy ALL properties to new persistence entity
+    entity.Id = Id.Value;
     entity.FirstName = FirstName;
     entity.LastName = LastName;
     entity.Email = Email;
     entity.Phone = Phone;
-    // All matching properties copied
+    entity.CreatedDate = DateTime.UtcNow;
+
+    db.Persons.Add(entity);
+    await db.SaveChangesAsync();
 }
 ```
 
-## MapModifiedTo(entity)
+### Why Copy Everything on Insert?
 
-`MapModifiedTo` copies only modified property values to a persistence entity. Used in `[Update]` operations.
+For new entities, every property value needs to be persisted. There is no previous state to compare against, so you copy all properties unconditionally.
 
-### Behavior
+### Complete Insert Example with Children
 
 ```csharp
-public partial void MapModifiedTo(PersonEntity entity);
+[Remote]
+[Insert]
+public async Task Insert(
+    [Service] IPersonDbContext db,
+    [Service] IPersonPhoneListFactory phoneListFactory)
+{
+    Id = Guid.NewGuid();
+    CreatedDate = DateTime.UtcNow;
+
+    var entity = new PersonEntity
+    {
+        Id = Id.Value,
+        FirstName = FirstName,
+        LastName = LastName,
+        Email = Email,
+        Phone = Phone,
+        CreatedDate = CreatedDate
+    };
+
+    db.Persons.Add(entity);
+
+    // Save children after parent has ID
+    await phoneListFactory.Save(PersonPhoneList, Id.Value);
+
+    await db.SaveChangesAsync();
+}
 ```
 
-The generated implementation:
+## Updating Data in Update Operations
 
-1. Checks each property's modification state
-2. Copies **only** properties where `IsModified == true`
-3. Minimizes database update statements
-4. Reduces concurrency conflicts
+The `[Update]` method persists changes to an existing entity. For efficiency, copy only modified properties.
 
-### Usage in Update
+### Checking Property Modification
+
+Access individual property state through the entity indexer:
+
+```csharp
+// Check if a specific property was modified
+if (this[nameof(Email)].IsModified)
+{
+    entity.Email = Email;
+}
+```
+
+### Update Pattern
 
 ```csharp
 [Remote]
 [Update]
-public async Task Update([Service] IPersonDbContext dbContext)
+public async Task Update([Service] IPersonDbContext db)
 {
-    var entity = await dbContext.Persons.FindAsync(Id);
+    var entity = await db.Persons.FindAsync(Id);
 
-    MapModifiedTo(entity);  // Copy only CHANGED properties
+    if (entity == null)
+        throw new InvalidOperationException($"Person {Id} not found");
 
-    await dbContext.SaveChangesAsync();
-}
-```
-
-### Why Only Modified Properties?
-
-Copying only modified properties:
-
-1. **Efficient Updates**: EF Core generates smaller UPDATE statements
-2. **Fewer Conflicts**: Less chance of overwriting concurrent changes
-3. **Audit Clarity**: Easier to see exactly what changed
-4. **Performance**: Less data transferred, fewer columns updated
-
-### Generated Code Example
-
-```csharp
-// Generated by source generator
-public partial void MapModifiedTo(PersonEntity entity)
-{
-    if (entity == null) throw new ArgumentNullException(nameof(entity));
-
-    if (this[nameof(Id)].IsModified)
-        entity.Id = Id;
+    // Copy only MODIFIED properties
     if (this[nameof(FirstName)].IsModified)
         entity.FirstName = FirstName;
     if (this[nameof(LastName)].IsModified)
@@ -251,192 +218,149 @@ public partial void MapModifiedTo(PersonEntity entity)
         entity.Email = Email;
     if (this[nameof(Phone)].IsModified)
         entity.Phone = Phone;
+
+    entity.ModifiedDate = DateTime.UtcNow;
+
+    await db.SaveChangesAsync();
 }
 ```
 
-### Checking Modified Properties
+### Why Only Modified Properties?
 
-You can see which properties are modified:
+Copying only modified properties provides:
+
+1. **Efficient Updates**: EF Core generates smaller UPDATE statements
+2. **Fewer Conflicts**: Less chance of overwriting concurrent changes
+3. **Audit Clarity**: Easier to see exactly what changed
+4. **Performance**: Less data transferred, fewer columns updated
+
+### Using ModifiedProperties Collection
+
+You can iterate all modified properties:
 
 ```csharp
-// Check individual property
-if (person[nameof(person.Email)].IsModified)
-{
-    // Email was changed
-}
-
 // List all modified properties
-foreach (var propName in person.ModifiedProperties)
+foreach (var propName in ModifiedProperties)
 {
     Console.WriteLine($"Changed: {propName}");
 }
 ```
 
-## Property Matching Rules
-
-The source generator matches properties between domain and persistence entities based on:
-
-### Name Matching
-
-Properties are matched by exact name (case-sensitive):
+### Complete Update Example with Children
 
 ```csharp
-// Domain entity
-public partial string? FirstName { get; set; }  // Matches FirstName
-
-// Persistence entity
-public string? FirstName { get; set; }          // Matched!
-public string? firstName { get; set; }          // NOT matched (case differs)
-public string? First_Name { get; set; }         // NOT matched
-```
-
-### Type Compatibility
-
-Property types must be compatible:
-
-| Domain Type | Persistence Type | Compatible |
-|-------------|-----------------|------------|
-| `string?` | `string?` | Yes |
-| `int` | `int` | Yes |
-| `int` | `int?` | Yes |
-| `DateTime` | `DateTime` | Yes |
-| `Guid?` | `Guid?` | Yes |
-| `string` | `int` | No |
-
-### What Gets Mapped
-
-Properties that **are** mapped:
-
-- Public properties with matching names
-- Properties with compatible types
-- Properties without `[MapperIgnore]`
-
-Properties that are **not** mapped:
-
-- Properties marked with `[MapperIgnore]`
-- Properties with no matching counterpart
-- Child entity properties (handled separately)
-- Collection properties (handled by their own factories)
-
-## The [MapperIgnore] Attribute
-
-Exclude properties from auto-generated mappers:
-
-```csharp
-[Factory]
-internal partial class Person : EntityBase<Person>, IPerson
+[Remote]
+[Update]
+public async Task Update(
+    [Service] IPersonDbContext db,
+    [Service] IPersonPhoneListFactory phoneListFactory)
 {
-    public partial Guid? Id { get; set; }
-    public partial string? FirstName { get; set; }
-    public partial string? LastName { get; set; }
+    var entity = await db.Persons.FindAsync(Id);
 
-    // Computed property - not in database
-    [MapperIgnore]
-    public partial string? FullName { get; set; }
+    if (entity == null)
+        throw new InvalidOperationException($"Person {Id} not found");
 
-    // Child collection - mapped separately
-    [MapperIgnore]
-    public partial IPersonPhoneList? PhoneList { get; set; }
+    // Update only modified scalar properties
+    if (this[nameof(FirstName)].IsModified)
+        entity.FirstName = FirstName;
+    if (this[nameof(LastName)].IsModified)
+        entity.LastName = LastName;
+    if (this[nameof(Email)].IsModified)
+        entity.Email = Email;
+    if (this[nameof(Phone)].IsModified)
+        entity.Phone = Phone;
 
-    // UI-only state - never persisted
-    [MapperIgnore]
-    public partial bool IsSelected { get; set; }
+    entity.ModifiedDate = DateTime.UtcNow;
+
+    // Save children (handles inserts, updates, deletes)
+    await phoneListFactory.Save(PersonPhoneList, Id.Value);
+
+    await db.SaveChangesAsync();
 }
 ```
 
-### When to Use [MapperIgnore]
+## Property Mapping Considerations
 
-Use `[MapperIgnore]` for:
+### Handling Type Conversions
 
-1. **Computed Properties**: Values calculated from other properties
-2. **Child Entities**: Collections mapped by their own factories
-3. **UI State**: Selection, expansion, visibility flags
-4. **Transient Data**: Values that should not persist
-5. **Type Mismatches**: Properties with incompatible types
-
-### Example: Computed Property
+When domain and persistence types differ, handle conversions explicitly:
 
 ```csharp
-public partial string? FirstName { get; set; }
-public partial string? LastName { get; set; }
+// Domain entity has enum
+public partial PersonStatus Status { get; set; }
 
-[MapperIgnore]  // Computed from FirstName + LastName
+// Persistence entity has string
+// In Fetch:
+LoadProperty(nameof(Status), Enum.Parse<PersonStatus>(entity.Status));
+
+// In Insert/Update:
+entity.Status = Status.ToString();
+```
+
+### Handling Nullable Properties
+
+```csharp
+// Fetch - handle null values
+LoadProperty(nameof(MiddleName), entity.MiddleName);  // null is fine
+
+// Update - check modification
+if (this[nameof(MiddleName)].IsModified)
+    entity.MiddleName = MiddleName;  // Can set to null
+```
+
+### Computed Properties
+
+Properties that are calculated from other properties do not need to be loaded or saved:
+
+```csharp
+// Computed property - set by a rule
 public partial string? FullName { get; set; }
 
+// Constructor sets up the rule
 public Person(IEntityBaseServices<Person> services) : base(services)
 {
     RuleManager.AddAction(
         (Person p) => p.FullName = $"{p.FirstName} {p.LastName}",
         p => p.FirstName, p => p.LastName);
 }
+
+// In Fetch - don't load FullName, let the rule calculate it
+// After loading FirstName and LastName, run rules if needed:
+// await RunRules(RunRulesFlag.All);
 ```
 
-## Mapping Nested Objects
+## Mapping Child Entities
 
-Child entities and value objects require special handling.
+Child entities are handled through their own factories, not by property assignment.
 
-### Value Objects
-
-For simple value objects embedded in the entity, use multiple mapper methods:
+### Loading Child Collections
 
 ```csharp
-// Domain entity
-public partial string? Street { get; set; }
-public partial string? City { get; set; }
-public partial string? PostalCode { get; set; }
-
-// Persistence entity has same flat structure
-public class PersonEntity
+[Remote]
+[Fetch]
+public async Task<bool> Fetch(
+    [Service] IDbContext db,
+    [Service] IPersonPhoneListFactory phoneListFactory)
 {
-    public string? Street { get; set; }
-    public string? City { get; set; }
-    public string? PostalCode { get; set; }
-}
+    var entity = await db.Persons
+        .Include(p => p.Phones)
+        .FirstOrDefaultAsync(p => p.Id == Id);
 
-// Properties match directly - standard mapping works
-public partial void MapFrom(PersonEntity entity);
-public partial void MapTo(PersonEntity entity);
-```
+    if (entity == null) return false;
 
-### Child Entities
+    // Load parent properties
+    LoadProperty(nameof(Id), entity.Id);
+    LoadProperty(nameof(FirstName), entity.FirstName);
+    // ... other properties
 
-Child entities are mapped through their own factories:
+    // Child collection loaded by its factory
+    PersonPhoneList = await phoneListFactory.Fetch(entity.Phones);
 
-```csharp
-[Factory]
-internal partial class Person : EntityBase<Person>, IPerson
-{
-    [MapperIgnore]  // Handled separately
-    public partial IPersonPhoneList? PhoneList { get; set; }
-
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
-
-    [Remote]
-    [Fetch]
-    public async Task<bool> Fetch(
-        [Service] IDbContext db,
-        [Service] IPersonPhoneListFactory phoneListFactory)
-    {
-        var entity = await db.Persons
-            .Include(p => p.Phones)
-            .FirstOrDefaultAsync(p => p.Id == Id);
-
-        if (entity == null) return false;
-
-        MapFrom(entity);  // Maps Person properties
-
-        // Child collection mapped by its factory
-        PhoneList = await phoneListFactory.Fetch(entity.Phones);
-
-        return true;
-    }
+    return true;
 }
 ```
 
-### Collection Factory Pattern
-
-Child collections use their own fetch method:
+### Child Collection Factory Pattern
 
 ```csharp
 [Factory]
@@ -450,9 +374,11 @@ internal partial class PersonPhoneList
     {
         foreach (var entity in entities)
         {
-            // Each item uses its own MapFrom
             var phone = await phoneFactory.Fetch(entity);
-            Add(phone);
+            if (phone != null)
+            {
+                Add(phone);
+            }
         }
     }
 }
@@ -476,69 +402,6 @@ public class PersonDbContext : DbContext, IPersonDbContext
 {
     public DbSet<PersonEntity> Persons { get; set; }
     public DbSet<PersonPhoneEntity> PersonPhones { get; set; }
-}
-```
-
-### Complete Fetch Pattern
-
-```csharp
-[Remote]
-[Fetch]
-public async Task<bool> Fetch([Service] IPersonDbContext db)
-{
-    var entity = await db.Persons
-        .AsNoTracking()          // Optimization - no EF tracking needed
-        .Include(p => p.Phones)
-        .FirstOrDefaultAsync(p => p.Id == Id);
-
-    if (entity == null) return false;
-
-    MapFrom(entity);
-    PhoneList = await _phoneListFactory.Fetch(entity.Phones);
-
-    return true;
-}
-```
-
-### Complete Insert Pattern
-
-```csharp
-[Remote]
-[Insert]
-public async Task Insert([Service] IPersonDbContext db)
-{
-    Id = Guid.NewGuid();
-
-    var entity = new PersonEntity();
-    MapTo(entity);               // Copy all properties
-
-    db.Persons.Add(entity);
-
-    // Save children after parent has ID
-    await _phoneListFactory.Save(PhoneList, Id.Value);
-
-    await db.SaveChangesAsync();
-}
-```
-
-### Complete Update Pattern
-
-```csharp
-[Remote]
-[Update]
-public async Task Update([Service] IPersonDbContext db)
-{
-    var entity = await db.Persons.FindAsync(Id);
-
-    if (entity == null)
-        throw new InvalidOperationException($"Person {Id} not found");
-
-    MapModifiedTo(entity);       // Copy only changed properties
-
-    // Save children (handles inserts, updates, deletes)
-    await _phoneListFactory.Save(PhoneList, Id.Value);
-
-    await db.SaveChangesAsync();
 }
 ```
 
@@ -567,13 +430,16 @@ public async Task Update([Service] IPersonDbContext db)
     // Set the original row version for concurrency check
     db.Entry(entity).Property(e => e.RowVersion).OriginalValue = RowVersion;
 
-    MapModifiedTo(entity);
+    // Update modified properties
+    if (this[nameof(FirstName)].IsModified)
+        entity.FirstName = FirstName;
+    // ... other properties
 
     try
     {
         await db.SaveChangesAsync();
         // Update our row version with the new value
-        RowVersion = entity.RowVersion;
+        LoadProperty(nameof(RowVersion), entity.RowVersion);
     }
     catch (DbUpdateConcurrencyException)
     {
@@ -584,7 +450,7 @@ public async Task Update([Service] IPersonDbContext db)
 
 ## Complete Example
 
-Here is a complete entity with all mapping patterns:
+Here is a complete entity with all data mapping patterns:
 
 ```csharp
 // Persistence Entity (EF Core)
@@ -628,23 +494,16 @@ internal partial class Person : EntityBase<Person>, IPerson
     public partial DateTime? ModifiedDate { get; set; }
     public partial byte[]? RowVersion { get; set; }
 
-    // Computed - not mapped
-    [MapperIgnore]
+    // Computed - not persisted
     public partial string? FullName { get; set; }
 
-    // Child collection - mapped separately
-    [MapperIgnore]
-    public partial IPersonPhoneList? PhoneList { get; set; }
-
-    // Mapper declarations
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
-    public partial void MapModifiedTo(PersonEntity entity);
+    // Child collection
+    public partial IPersonPhoneList? PersonPhoneList { get; set; }
 
     [Create]
     public void Create()
     {
-        PhoneList = _phoneListFactory.Create();
+        PersonPhoneList = _phoneListFactory.Create();
         CreatedDate = DateTime.UtcNow;
     }
 
@@ -658,8 +517,17 @@ internal partial class Person : EntityBase<Person>, IPerson
 
         if (entity == null) return false;
 
-        MapFrom(entity);
-        PhoneList = await _phoneListFactory.Fetch(entity.Phones);
+        // Load all properties
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
+        LoadProperty(nameof(Email), entity.Email);
+        LoadProperty(nameof(CreatedDate), entity.CreatedDate);
+        LoadProperty(nameof(ModifiedDate), entity.ModifiedDate);
+        LoadProperty(nameof(RowVersion), entity.RowVersion);
+
+        // Load child collection
+        PersonPhoneList = await _phoneListFactory.Fetch(entity.Phones);
         return true;
     }
 
@@ -670,14 +538,20 @@ internal partial class Person : EntityBase<Person>, IPerson
         Id = Guid.NewGuid();
         CreatedDate = DateTime.UtcNow;
 
-        var entity = new PersonEntity();
-        MapTo(entity);
-        db.Persons.Add(entity);
+        var entity = new PersonEntity
+        {
+            Id = Id.Value,
+            FirstName = FirstName,
+            LastName = LastName,
+            Email = Email,
+            CreatedDate = CreatedDate
+        };
 
-        await _phoneListFactory.Save(PhoneList, Id.Value);
+        db.Persons.Add(entity);
+        await _phoneListFactory.Save(PersonPhoneList, Id.Value);
         await db.SaveChangesAsync();
 
-        RowVersion = entity.RowVersion;
+        LoadProperty(nameof(RowVersion), entity.RowVersion);
     }
 
     [Remote]
@@ -689,12 +563,20 @@ internal partial class Person : EntityBase<Person>, IPerson
         var entity = await db.Persons.FindAsync(Id);
         db.Entry(entity).Property(e => e.RowVersion).OriginalValue = RowVersion;
 
-        MapModifiedTo(entity);
+        // Update only modified properties
+        if (this[nameof(FirstName)].IsModified)
+            entity.FirstName = FirstName;
+        if (this[nameof(LastName)].IsModified)
+            entity.LastName = LastName;
+        if (this[nameof(Email)].IsModified)
+            entity.Email = Email;
 
-        await _phoneListFactory.Save(PhoneList, Id.Value);
+        entity.ModifiedDate = ModifiedDate;
+
+        await _phoneListFactory.Save(PersonPhoneList, Id.Value);
         await db.SaveChangesAsync();
 
-        RowVersion = entity.RowVersion;
+        LoadProperty(nameof(RowVersion), entity.RowVersion);
     }
 
     [Remote]
@@ -711,33 +593,42 @@ internal partial class Person : EntityBase<Person>, IPerson
 }
 ```
 
+## Best Practices
+
+### Keep Fetch Methods Efficient
+
+- Use `AsNoTracking()` when you do not need EF change tracking
+- Use `Include()` to load related entities in one query
+- Load only the properties you need
+
+### Keep Insert/Update Methods Clean
+
+- Separate persistence logic from business logic
+- Handle child entities through their factories
+- Use transactions for complex operations
+
+### Handle Errors Gracefully
+
+- Check for null entities in Update/Delete
+- Handle concurrency exceptions
+- Provide meaningful error messages
+
 ## Troubleshooting
 
-### Property Not Being Mapped
+### Property Not Being Loaded
 
-If a property is not being mapped:
+If a property is not being loaded:
 
-1. **Check name match**: Names must be exactly identical (case-sensitive)
-2. **Check type compatibility**: Types must be assignable
-3. **Check for [MapperIgnore]**: Property may be excluded
-4. **Check visibility**: Both properties must be public
-
-### Mapper Method Not Generated
-
-If the mapper implementation is not generated:
-
-1. **Verify `partial` keyword**: Method must be declared `partial`
-2. **Check parameter type**: Parameter must be a concrete class (not interface)
-3. **Rebuild project**: Source generators run on build
-4. **Check for errors**: Look for source generator errors in build output
+1. **Check LoadProperty call**: Ensure you are calling `LoadProperty()` for that property
+2. **Check property names**: Names must match exactly (use `nameof()`)
+3. **Check for nulls**: Handle null values from the database appropriately
 
 ### Rules Running During Fetch
 
 If rules unexpectedly run during fetch:
 
-1. **Verify MapFrom is used**: Not property setters
+1. **Verify LoadProperty is used**: Not property setters
 2. **Check for property assignments**: Any direct assignment triggers rules
-3. **Use LoadProperty for manual loading**: For properties not in MapFrom
 
 ```csharp
 // Wrong - triggers rules
@@ -746,6 +637,14 @@ this.Email = entity.Email;
 // Correct - no rules triggered
 LoadProperty(nameof(Email), entity.Email);
 ```
+
+### Modified Properties Not Updating Database
+
+If changes are not being persisted:
+
+1. **Check IsModified**: Verify the property is marked as modified
+2. **Check the Update method**: Ensure you are checking the right property names
+3. **Verify SaveChangesAsync**: Ensure it is being called
 
 ## Related Topics
 

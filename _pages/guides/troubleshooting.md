@@ -261,11 +261,11 @@ public class EmailRule : RuleBase<Person>
 services.AddScoped<IUniqueEmailRule, UniqueEmailRule>();
 ```
 
-**Solution 4:** Check if `MapFrom` was used (skips rules):
+**Solution 4:** Check if `LoadProperty` was used in Fetch (skips rules):
 
 ```csharp
-// MapFrom uses LoadProperty - no rules triggered
-MapFrom(entity);
+// LoadProperty does not trigger rules
+LoadProperty(nameof(Email), entity.Email);
 
 // If you need rules to run after fetch:
 await RunRules(RunRulesFlag.All);
@@ -461,22 +461,17 @@ internal partial class Person : EntityBase<Person>, IPerson  // Both required
 
 **Problem:** Some properties are null or default after a remote operation.
 
-**Solution 1:** Check if the property is marked `[MapperIgnore]`:
+**Solution 1:** Ensure the property is `partial`:
 
 ```csharp
-[MapperIgnore]  // This property is not serialized!
-public partial string? FullName { get; set; }
+// Non-partial properties are not serialized
+public string? FullName { get; set; }  // Won't transfer!
+
+// Partial properties are serialized
+public partial string? FullName { get; set; }  // Will transfer
 ```
 
-**Solution 2:** Verify property names match between domain and persistence entities:
-
-```csharp
-// Names must match exactly (case-sensitive)
-// Domain: FirstName
-// Persistence: firstName  <- Will not map!
-```
-
-**Solution 3:** Check if the property type is serializable:
+**Solution 2:** Check if the property type is serializable:
 
 ```csharp
 // Non-serializable types cause issues
@@ -776,7 +771,10 @@ public async Task<bool> Fetch(
     var entity = await query.FirstOrDefaultAsync(o => o.Id == Id);
     if (entity == null) return false;
 
-    MapFrom(entity);
+    // Load properties
+    LoadProperty(nameof(Id), entity.Id);
+    LoadProperty(nameof(OrderDate), entity.OrderDate);
+    // ... other properties
 
     if (includeLines)
         Lines = await lineFactory.Fetch(entity.Lines);
@@ -857,7 +855,7 @@ private void OnEmailChanged(string value)
 
 ### Stepping Through Generated Code
 
-**Problem:** You want to debug generated factory or mapper code.
+**Problem:** You want to debug generated factory code.
 
 **Solution:**
 1. Enable generated file output (see above)
@@ -893,15 +891,6 @@ public partial interface IPerson : IEntityBase
 {
     Guid? Id { get; set; }
 }
-```
-
-3. **Incompatible property types in mapper:**
-```csharp
-// Domain entity
-public partial string? Status { get; set; }
-
-// Persistence entity
-public int Status { get; set; }  // Type mismatch!
 ```
 
 ## Common Development Mistakes
@@ -991,5 +980,5 @@ When an entity will not save, check these conditions:
 - [Rules Engine Reference](/reference/rules/) - Rule system details
 - [Factory Operations Reference](/reference/factory-operations/) - Factory patterns
 - [EntityListBase Reference](/reference/entity-list-base/) - Collection handling
-- [Data Mapping Reference](/reference/data-mapping/) - MapFrom, MapTo issues
+- [Data Mapping Reference](/reference/data-mapping/) - Property mapping patterns
 - [Authorization System Reference](/reference/authorization/) - Auth troubleshooting

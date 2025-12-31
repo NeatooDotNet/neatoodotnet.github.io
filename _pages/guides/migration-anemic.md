@@ -61,10 +61,10 @@ internal partial class Person : EntityBase<Person>, IPerson
     [Required(ErrorMessage = "Last name is required")]
     public partial string? LastName { get; set; }
 
-    [MapperIgnore]
+    // Computed - not persisted
     public partial string? FullName { get; set; }
 
-    [MapperIgnore]
+    // Computed - not persisted
     public partial int Age { get; set; }
 
     private static int CalculateAge(DateTime? dob)
@@ -273,10 +273,6 @@ internal partial class Person : EntityBase<Person>, IPerson
     public partial Guid? Id { get; set; }
     public partial string? FirstName { get; set; }
     public partial string? LastName { get; set; }
-
-    // Only need mapper for persistence entity
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
 }
 ```
 
@@ -339,7 +335,12 @@ internal partial class Person : EntityBase<Person>, IPerson
     {
         var entity = await db.Persons.FindAsync(Id);
         if (entity == null) return false;
-        MapFrom(entity);
+
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
+        LoadProperty(nameof(CreatedDate), entity.CreatedDate);
+        LoadProperty(nameof(IsActive), entity.IsActive);
         return true;
     }
 
@@ -348,8 +349,15 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Insert([Service] IPersonDbContext db)
     {
         Id = Guid.NewGuid();
-        var entity = new PersonEntity();
-        MapTo(entity);
+
+        var entity = new PersonEntity
+        {
+            Id = Id.Value,
+            FirstName = FirstName,
+            LastName = LastName,
+            CreatedDate = CreatedDate,
+            IsActive = IsActive
+        };
         db.Persons.Add(entity);
         await db.SaveChangesAsync();
     }
@@ -359,7 +367,14 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Update([Service] IPersonDbContext db)
     {
         var entity = await db.Persons.FindAsync(Id);
-        MapModifiedTo(entity);
+
+        if (this[nameof(FirstName)].IsModified)
+            entity.FirstName = FirstName;
+        if (this[nameof(LastName)].IsModified)
+            entity.LastName = LastName;
+        if (this[nameof(IsActive)].IsModified)
+            entity.IsActive = IsActive;
+
         await db.SaveChangesAsync();
     }
 }
@@ -577,7 +592,10 @@ internal partial class Person : EntityBase<Person>, IPerson
     {
         var entity = await db.Persons.FindAsync(Id);
         if (entity == null) return false;
-        MapFrom(entity);
+
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
         return true;
     }
 
@@ -586,8 +604,13 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Insert([Service] IPersonDbContext db)
     {
         Id = Guid.NewGuid();
-        var entity = new PersonEntity();
-        MapTo(entity);
+
+        var entity = new PersonEntity
+        {
+            Id = Id.Value,
+            FirstName = FirstName,
+            LastName = LastName
+        };
         db.Persons.Add(entity);
         await db.SaveChangesAsync();
     }
@@ -597,7 +620,12 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Update([Service] IPersonDbContext db)
     {
         var entity = await db.Persons.FindAsync(Id);
-        MapModifiedTo(entity);
+
+        if (this[nameof(FirstName)].IsModified)
+            entity.FirstName = FirstName;
+        if (this[nameof(LastName)].IsModified)
+            entity.LastName = LastName;
+
         await db.SaveChangesAsync();
     }
 
@@ -687,10 +715,6 @@ internal partial class Person : EntityBase<Person>, IPerson
     public partial string? FirstName { get; set; }
     public partial string? LastName { get; set; }
     public partial string? Email { get; set; }
-
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
-    public partial void MapModifiedTo(PersonEntity entity);
 }
 ```
 
@@ -747,7 +771,12 @@ internal partial class Person : EntityBase<Person>, IPerson
     {
         var entity = await db.Persons.FindAsync(Id);
         if (entity == null) return false;
-        MapFrom(entity);
+
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
+        LoadProperty(nameof(Email), entity.Email);
+        LoadProperty(nameof(CreatedDate), entity.CreatedDate);
         return true;
     }
 
@@ -756,8 +785,15 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Insert([Service] IPersonDbContext db)
     {
         Id = Guid.NewGuid();
-        var entity = new PersonEntity();
-        MapTo(entity);
+
+        var entity = new PersonEntity
+        {
+            Id = Id.Value,
+            FirstName = FirstName,
+            LastName = LastName,
+            Email = Email,
+            CreatedDate = CreatedDate
+        };
         db.Persons.Add(entity);
         await db.SaveChangesAsync();
     }
@@ -767,7 +803,14 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Update([Service] IPersonDbContext db)
     {
         var entity = await db.Persons.FindAsync(Id);
-        MapModifiedTo(entity);
+
+        if (this[nameof(FirstName)].IsModified)
+            entity.FirstName = FirstName;
+        if (this[nameof(LastName)].IsModified)
+            entity.LastName = LastName;
+        if (this[nameof(Email)].IsModified)
+            entity.Email = Email;
+
         await db.SaveChangesAsync();
     }
 
@@ -1127,12 +1170,8 @@ internal partial class Person : EntityBase<Person>, IPerson
 
     public partial string? Email { get; set; }
 
-    [MapperIgnore]
+    // Child collection
     public partial IPersonPhoneList? Phones { get; set; }
-
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
-    public partial void MapModifiedTo(PersonEntity entity);
 
     [Create]
     public void Create()
@@ -1150,7 +1189,12 @@ internal partial class Person : EntityBase<Person>, IPerson
 
         if (entity == null) return false;
 
-        MapFrom(entity);
+        // Load properties without triggering rules
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
+        LoadProperty(nameof(Email), entity.Email);
+
         Phones = await _phoneListFactory.Fetch(entity.Phones);
         return true;
     }
@@ -1160,8 +1204,14 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Insert([Service] IPersonDbContext db)
     {
         Id = Guid.NewGuid();
-        var entity = new PersonEntity();
-        MapTo(entity);
+
+        var entity = new PersonEntity
+        {
+            Id = Id.Value,
+            FirstName = FirstName,
+            LastName = LastName,
+            Email = Email
+        };
         db.Persons.Add(entity);
         await _phoneListFactory.Save(Phones, Id.Value);
         await db.SaveChangesAsync();
@@ -1172,7 +1222,15 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Update([Service] IPersonDbContext db)
     {
         var entity = await db.Persons.FindAsync(Id);
-        MapModifiedTo(entity);
+
+        // Update only modified properties
+        if (this[nameof(FirstName)].IsModified)
+            entity.FirstName = FirstName;
+        if (this[nameof(LastName)].IsModified)
+            entity.LastName = LastName;
+        if (this[nameof(Email)].IsModified)
+            entity.Email = Email;
+
         await _phoneListFactory.Save(Phones, Id.Value);
         await db.SaveChangesAsync();
     }

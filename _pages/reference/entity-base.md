@@ -45,7 +45,6 @@ internal partial class Person : EntityBase<Person>, IPerson
 
 The `partial` keyword is required because the Roslyn Source Generator creates additional partial class files containing:
 - Property backing field implementations
-- Generated mapper methods (`MapFrom`, `MapTo`, `MapModifiedTo`)
 - Factory-related infrastructure
 
 ## Constructor Pattern
@@ -97,7 +96,6 @@ Properties support standard data annotation attributes:
 - `[StringLength]` - Min/max string length
 - `[Range]` - Numeric range validation
 - `[DisplayName]` - UI-friendly name
-- `[MapperIgnore]` - Exclude from auto-generated mappers
 
 ## Meta-Properties
 
@@ -566,11 +564,6 @@ internal partial class Person : EntityBase<Person>, IPerson
     // Child collection
     public partial IPersonPhoneList? PersonPhoneList { get; set; }
 
-    // Mapper methods (implementations generated)
-    public partial void MapFrom(PersonEntity personEntity);
-    public partial void MapTo(PersonEntity personEntity);
-    public partial void MapModifiedTo(PersonEntity personEntity);
-
     // Factory methods
     [Create]
     public void Create([Service] IPersonPhoneListFactory phoneListFactory)
@@ -590,7 +583,13 @@ internal partial class Person : EntityBase<Person>, IPerson
 
         if (entity == null) return false;
 
-        MapFrom(entity);
+        // Load properties without triggering rules
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
+        LoadProperty(nameof(Email), entity.Email);
+        LoadProperty(nameof(Notes), entity.Notes);
+
         PersonPhoneList = await phoneListFactory.Fetch(entity.Phones);
         return true;
     }
@@ -600,8 +599,16 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Insert([Service] IPersonDbContext dbContext)
     {
         Id = Guid.NewGuid();
-        var entity = new PersonEntity();
-        MapTo(entity);
+
+        var entity = new PersonEntity
+        {
+            Id = Id.Value,
+            FirstName = FirstName,
+            LastName = LastName,
+            Email = Email,
+            Notes = Notes
+        };
+
         dbContext.Persons.Add(entity);
         await dbContext.SaveChangesAsync();
     }
@@ -611,7 +618,17 @@ internal partial class Person : EntityBase<Person>, IPerson
     public async Task Update([Service] IPersonDbContext dbContext)
     {
         var entity = await dbContext.Persons.FindAsync(Id);
-        MapModifiedTo(entity);
+
+        // Update only modified properties
+        if (this[nameof(FirstName)].IsModified)
+            entity.FirstName = FirstName;
+        if (this[nameof(LastName)].IsModified)
+            entity.LastName = LastName;
+        if (this[nameof(Email)].IsModified)
+            entity.Email = Email;
+        if (this[nameof(Notes)].IsModified)
+            entity.Notes = Notes;
+
         await dbContext.SaveChangesAsync();
     }
 

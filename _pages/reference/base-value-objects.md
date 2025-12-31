@@ -322,7 +322,10 @@ public async Task<bool> Fetch(
     var entity = await db.Customers.FindAsync(Id);
     if (entity == null) return false;
 
-    MapFrom(entity);
+    // Load simple properties
+    LoadProperty(nameof(Id), entity.Id);
+    LoadProperty(nameof(Name), entity.Name);
+    LoadProperty(nameof(Email), entity.Email);
 
     // Create Value Objects from stored data
     BillingAddress = addressFactory.Create(
@@ -340,37 +343,6 @@ public async Task<bool> Fetch(
 }
 ```
 
-### Mapping Value Objects
-
-Handle Value Object mapping in your mapper methods:
-
-```csharp
-// Manual mapping for complex Value Objects
-public partial void MapFrom(CustomerEntity entity);
-
-// Override or extend for Value Objects
-[MapperIgnore]
-public partial Address? BillingAddress { get; set; }
-
-// Then handle in factory method:
-[Fetch]
-public async Task<bool> Fetch([Service] IDbContext db,
-                              [Service] IAddressFactory addressFactory)
-{
-    var entity = await db.Customers.FindAsync(Id);
-    MapFrom(entity);  // Maps simple properties
-
-    // Manually create Value Objects
-    BillingAddress = addressFactory.Create(
-        entity.BillingStreet,
-        entity.BillingCity,
-        entity.BillingState,
-        entity.BillingZip);
-
-    return true;
-}
-```
-
 ### Storing Value Objects
 
 Flatten Value Objects when persisting:
@@ -379,8 +351,12 @@ Flatten Value Objects when persisting:
 [Insert]
 public async Task Insert([Service] IDbContext db)
 {
-    var entity = new CustomerEntity();
-    MapTo(entity);
+    var entity = new CustomerEntity
+    {
+        Id = Id.Value,
+        Name = Name,
+        Email = Email
+    };
 
     // Flatten Value Object to columns
     if (BillingAddress != null)

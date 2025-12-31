@@ -65,7 +65,12 @@ internal partial class Person : EntityBase<Person>, IPerson
         var entity = await dbContext.Persons.FindAsync(Id);
         if (entity == null) return false;
 
-        MapFrom(entity);
+        // Load properties without triggering rules
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
+        LoadProperty(nameof(Email), entity.Email);
+
         PersonPhoneList = await phoneListFactory.Fetch(entity.Phones);
         return true;
     }
@@ -150,7 +155,12 @@ public async Task<bool> Fetch(
 
     if (entity == null) return false;
 
-    MapFrom(entity);  // Load properties without triggering rules
+    // Load properties without triggering rules
+    LoadProperty(nameof(Id), entity.Id);
+    LoadProperty(nameof(FirstName), entity.FirstName);
+    LoadProperty(nameof(LastName), entity.LastName);
+    LoadProperty(nameof(Email), entity.Email);
+
     PersonPhoneList = await phoneListFactory.Fetch(entity.Phones);
     return true;
 }
@@ -161,7 +171,7 @@ After `Fetch()`:
 - `IsNew == false`
 - `IsModified == false`
 - Entity reflects persisted state
-- Rules have not run (use `MapFrom` which calls `LoadProperty`)
+- Rules have not run (`LoadProperty` does not trigger rules)
 
 Return `false` to indicate the entity was not found; the factory returns `null` to the caller.
 
@@ -188,8 +198,14 @@ public async Task Insert(
 {
     Id = Guid.NewGuid();
 
-    var entity = new PersonEntity();
-    MapTo(entity);  // Copy ALL properties to persistence entity
+    // Copy ALL properties to persistence entity
+    var entity = new PersonEntity
+    {
+        Id = Id.Value,
+        FirstName = FirstName,
+        LastName = LastName,
+        Email = Email
+    };
     dbContext.Persons.Add(entity);
 
     // Persist child collection
@@ -218,7 +234,13 @@ public async Task Update(
 {
     var entity = await dbContext.Persons.FindAsync(Id);
 
-    MapModifiedTo(entity);  // Copy only MODIFIED properties
+    // Copy only MODIFIED properties
+    if (this[nameof(FirstName)].IsModified)
+        entity.FirstName = FirstName;
+    if (this[nameof(LastName)].IsModified)
+        entity.LastName = LastName;
+    if (this[nameof(Email)].IsModified)
+        entity.Email = Email;
 
     // Persist child collection (handles inserts, updates, deletes)
     await phoneListFactory.Save(PersonPhoneList, Id);
@@ -618,7 +640,7 @@ sequenceDiagram
     F->>S: Serialize & POST /api/neatoo
     S->>P: Deserialize entity
     S->>P: Call [Insert] method
-    P->>DB: MapTo() + SaveChanges
+    P->>DB: Copy properties + SaveChanges
     DB-->>P: Success
     P-->>S: Entity (IsNew=false)
     S-->>F: Serialize response
@@ -630,7 +652,7 @@ sequenceDiagram
     S->>P: Call [Fetch] method
     P->>DB: Query
     DB-->>P: Data
-    P->>P: MapFrom()
+    P->>P: LoadProperty() calls
     P-->>S: Entity populated
     S-->>F: Serialize response
     F-->>UI: Return entity (IsNew=false)
@@ -748,11 +770,6 @@ internal partial class Person : EntityBase<Person>, IPerson
 
     public partial IPersonPhoneList? PersonPhoneList { get; set; }
 
-    // Mapper method declarations (implementations generated)
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
-    public partial void MapModifiedTo(PersonEntity entity);
-
     // Factory Methods
     [Create]
     public void Create([Service] IPersonPhoneListFactory phoneListFactory)
@@ -772,7 +789,12 @@ internal partial class Person : EntityBase<Person>, IPerson
 
         if (entity == null) return false;
 
-        MapFrom(entity);
+        // Load properties without triggering rules
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(FirstName), entity.FirstName);
+        LoadProperty(nameof(LastName), entity.LastName);
+        LoadProperty(nameof(Email), entity.Email);
+
         PersonPhoneList = await phoneListFactory.Fetch(entity.Phones);
         return true;
     }
@@ -785,8 +807,13 @@ internal partial class Person : EntityBase<Person>, IPerson
     {
         Id = Guid.NewGuid();
 
-        var entity = new PersonEntity();
-        MapTo(entity);
+        var entity = new PersonEntity
+        {
+            Id = Id.Value,
+            FirstName = FirstName,
+            LastName = LastName,
+            Email = Email
+        };
         dbContext.Persons.Add(entity);
 
         await phoneListFactory.Save(PersonPhoneList, Id.Value);
@@ -800,7 +827,14 @@ internal partial class Person : EntityBase<Person>, IPerson
         [Service] IPersonPhoneListFactory phoneListFactory)
     {
         var entity = await dbContext.Persons.FindAsync(Id);
-        MapModifiedTo(entity);
+
+        // Update only modified properties
+        if (this[nameof(FirstName)].IsModified)
+            entity.FirstName = FirstName;
+        if (this[nameof(LastName)].IsModified)
+            entity.LastName = LastName;
+        if (this[nameof(Email)].IsModified)
+            entity.Email = Email;
 
         await phoneListFactory.Save(PersonPhoneList, Id.Value);
         await dbContext.SaveChangesAsync();
@@ -823,7 +857,7 @@ internal partial class Person : EntityBase<Person>, IPerson
 ## Related Topics
 
 - [Factory Operations Reference](/reference/factory-operations/) - Complete attribute and method reference
-- [Data Mapping Reference](/reference/data-mapping/) - MapFrom, MapTo, MapModifiedTo details
+- [Data Mapping Reference](/reference/data-mapping/) - LoadProperty, property mapping details
 - [Client-Server Architecture](/concepts/client-server/) - How remote operations work
 - [Aggregates and Entity Graphs](/concepts/aggregates/) - Parent-child factory patterns
 - [DDD Concepts](/concepts/ddd-overview/) - Factory pattern in DDD context

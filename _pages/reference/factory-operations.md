@@ -686,8 +686,20 @@ internal partial class Person : EntityBase<Person>, IPerson
     public partial Guid? Id { get; set; }
     public partial string? Name { get; set; }
 
-    public partial void MapFrom(PersonEntity entity);
-    public partial void MapTo(PersonEntity entity);
+    // MapFrom and MapTo are manually implemented
+    // Only MapModifiedTo is source-generated
+    public void MapFrom(PersonEntity entity)
+    {
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(Name), entity.Name);
+    }
+
+    public void MapTo(PersonEntity entity)
+    {
+        entity.Id = Id ?? Guid.Empty;
+        entity.Name = Name;
+    }
+
     public partial void MapModifiedTo(PersonEntity entity);
 
     [Create]

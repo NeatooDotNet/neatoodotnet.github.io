@@ -4,9 +4,9 @@ layout: single
 permalink: /overview/entity/
 ---
 
-Neatoo [EntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityBase.cs) is the main component of Neatoo. 
+Neatoo [EntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityBase.cs) is the main component of Neatoo.
 It provides the bindable properties, triggers rules on property change and bindable meta properties.
-It also defines the Factory Methods as the Data Mapper to the persistance layer.
+It also defines the Factory Methods for persisting to the database.
 
 This is a brief overview of [EntityBase](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Neatoo/EntityBase.cs) using the [Person](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/Person.cs) entity. More in-depth pages are in the works for each feature.
 
@@ -17,7 +17,7 @@ internal partial class Person : EntityBase<Person>, IPerson
 ```
 
 - Entities inherit from `Neatoo.EntityBase<T>` defining themselves as T
-- Partial is required for Neatoo to generate property definitions and MapTo/MapFrom/etc methods
+- Partial is required for Neatoo to generate property definitions
 
 
 ## Constructor
@@ -89,20 +89,6 @@ Each Meta Property has a corresponding IsSelf. This excludes Child Enties.
 ## Parent Property
 
 If an EntityBase ("child") is assigned to the property of another EntityBase ("parent") then child.Parent will be automatically set i.e. child.Parent = parent. Only the Aggregate Root should have Parent = null.
-
-## Map Methods
-
-``` csharp
-    public partial void MapFrom(PersonEntity personEntity);
-    public partial void MapTo(PersonEntity personEntity);
-    public partial void MapModifiedTo(PersonEntity personEntity);
-```
-
-- Optional partial methods
-- When included (and the class is partial) [Neatoo will generate mapping methods](https://github.com/NeatooDotNet/Neatoo/blob/main/src/Examples/Person/Person.DomainModel/Generated/Neatoo.RemoteFactory.FactoryGenerator/Neatoo.RemoteFactory.FactoryGenerator.MapperGenerator/DomainModel.PersonMapper.g.cs) to map the parameter type to the Entity
-- Mapping is done strickly on property name
-- Mismatched types will lead to a compile error
-- Use the [MapperIgnore] attribute on a property to exclude it [Example](https://github.com/NeatooDotNet/RemoteFactory/blob/main/src/Tests/FactoryGeneratorTests/Mapper/MapperIgnoreAttribute.cs)
 
 ## Factory Methods
 

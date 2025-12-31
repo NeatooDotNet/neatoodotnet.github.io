@@ -39,10 +39,16 @@ Track which commits from each repository this documentation site is synchronized
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | `a16fb5b` | 2025-12-29 |
-| RemoteFactory | `cb0db17` | 2025-12-29 |
+| Neatoo | `4c83d45` | 2025-12-30 |
+| RemoteFactory | `9e62dda` | 2025-12-30 |
 
 When updating documentation, review commits since the last sync and update this table.
+
+**Note**: 2025-12-30 sync updated mapper documentation:
+- `MapFrom` and `MapTo` are now **manually implemented** (no longer source-generated)
+- `MapModifiedTo` remains **source-generated** by Neatoo
+- Data mapping uses explicit `LoadProperty()` calls and property assignments
+- See `factory-operations.md` and `data-mapping.md` for current patterns
 
 ## Neatoo Skill Maintenance
 
@@ -58,8 +64,8 @@ Track which commits have been incorporated into the Neatoo skill:
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | `a16fb5b` | 2025-12-29 |
-| RemoteFactory | `cb0db17` | 2025-12-29 |
+| Neatoo | `4c83d45` | 2025-12-30 |
+| RemoteFactory | `9e62dda` | 2025-12-30 |
 
 ### Update Checklist
 

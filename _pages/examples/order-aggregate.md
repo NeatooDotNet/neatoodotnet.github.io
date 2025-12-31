@@ -154,11 +154,6 @@ internal partial class Order : EntityBase<Order>, IOrder
     // Child collection
     public partial IOrderLineItemList? LineItems { get; set; }
 
-    // Mapper methods (implementations generated)
-    public partial void MapFrom(OrderEntity entity);
-    public partial void MapTo(OrderEntity entity);
-    public partial void MapModifiedTo(OrderEntity entity);
-
     // Factory Methods
 
     [Create]
@@ -181,7 +176,17 @@ internal partial class Order : EntityBase<Order>, IOrder
 
         if (entity == null) return false;
 
-        MapFrom(entity);
+        // Load properties without triggering rules
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(OrderNumber), entity.OrderNumber);
+        LoadProperty(nameof(OrderDate), entity.OrderDate);
+        LoadProperty(nameof(CustomerName), entity.CustomerName);
+        LoadProperty(nameof(ShippingAddress), entity.ShippingAddress);
+        LoadProperty(nameof(TaxRate), entity.TaxRate);
+        LoadProperty(nameof(Subtotal), entity.Subtotal);
+        LoadProperty(nameof(Tax), entity.Tax);
+        LoadProperty(nameof(Total), entity.Total);
+
         LineItems = await lineItemListFactory.Fetch(entity.LineItems);
         return true;
     }
@@ -199,7 +204,17 @@ internal partial class Order : EntityBase<Order>, IOrder
 
         if (entity == null) return false;
 
-        MapFrom(entity);
+        // Load properties without triggering rules
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(OrderNumber), entity.OrderNumber);
+        LoadProperty(nameof(OrderDate), entity.OrderDate);
+        LoadProperty(nameof(CustomerName), entity.CustomerName);
+        LoadProperty(nameof(ShippingAddress), entity.ShippingAddress);
+        LoadProperty(nameof(TaxRate), entity.TaxRate);
+        LoadProperty(nameof(Subtotal), entity.Subtotal);
+        LoadProperty(nameof(Tax), entity.Tax);
+        LoadProperty(nameof(Total), entity.Total);
+
         LineItems = await lineItemListFactory.Fetch(entity.LineItems);
         return true;
     }
@@ -213,8 +228,18 @@ internal partial class Order : EntityBase<Order>, IOrder
         Id = Guid.NewGuid();
         OrderNumber = await GenerateOrderNumber(dbContext);
 
-        var entity = new OrderEntity();
-        MapTo(entity);
+        var entity = new OrderEntity
+        {
+            Id = Id.Value,
+            OrderNumber = OrderNumber,
+            OrderDate = OrderDate,
+            CustomerName = CustomerName,
+            ShippingAddress = ShippingAddress,
+            TaxRate = TaxRate,
+            Subtotal = Subtotal,
+            Tax = Tax,
+            Total = Total
+        };
         dbContext.Orders.Add(entity);
 
         // Save child collection
@@ -233,7 +258,21 @@ internal partial class Order : EntityBase<Order>, IOrder
         if (entity == null)
             throw new InvalidOperationException($"Order {Id} not found");
 
-        MapModifiedTo(entity);
+        // Update only modified properties
+        if (this[nameof(OrderDate)].IsModified)
+            entity.OrderDate = OrderDate;
+        if (this[nameof(CustomerName)].IsModified)
+            entity.CustomerName = CustomerName;
+        if (this[nameof(ShippingAddress)].IsModified)
+            entity.ShippingAddress = ShippingAddress;
+        if (this[nameof(TaxRate)].IsModified)
+            entity.TaxRate = TaxRate;
+        if (this[nameof(Subtotal)].IsModified)
+            entity.Subtotal = Subtotal;
+        if (this[nameof(Tax)].IsModified)
+            entity.Tax = Tax;
+        if (this[nameof(Total)].IsModified)
+            entity.Total = Total;
 
         // Save child collection (handles inserts, updates, deletes)
         await lineItemListFactory.Save(LineItems, Id!.Value);
@@ -342,8 +381,16 @@ internal partial class OrderLineItemList
             {
                 // Insert new item
                 lineItem.Id = Guid.NewGuid();
-                var entity = new OrderLineItemEntity { OrderId = orderId };
-                lineItem.MapTo(entity);
+                var entity = new OrderLineItemEntity
+                {
+                    Id = lineItem.Id.Value,
+                    OrderId = orderId,
+                    ProductId = lineItem.ProductId,
+                    ProductName = lineItem.ProductName,
+                    Quantity = lineItem.Quantity,
+                    UnitPrice = lineItem.UnitPrice,
+                    LineTotal = lineItem.LineTotal
+                };
                 dbContext.OrderLineItems.Add(entity);
             }
             else if (lineItem.IsSelfModified)
@@ -352,7 +399,16 @@ internal partial class OrderLineItemList
                 var entity = await dbContext.OrderLineItems.FindAsync(lineItem.Id);
                 if (entity != null)
                 {
-                    lineItem.MapModifiedTo(entity);
+                    if (lineItem[nameof(lineItem.ProductId)].IsModified)
+                        entity.ProductId = lineItem.ProductId;
+                    if (lineItem[nameof(lineItem.ProductName)].IsModified)
+                        entity.ProductName = lineItem.ProductName;
+                    if (lineItem[nameof(lineItem.Quantity)].IsModified)
+                        entity.Quantity = lineItem.Quantity;
+                    if (lineItem[nameof(lineItem.UnitPrice)].IsModified)
+                        entity.UnitPrice = lineItem.UnitPrice;
+                    if (lineItem[nameof(lineItem.LineTotal)].IsModified)
+                        entity.LineTotal = lineItem.LineTotal;
                 }
             }
         }
@@ -415,11 +471,6 @@ internal partial class OrderLineItem
     // Parent navigation
     public IOrder? ParentOrder => Parent as IOrder;
 
-    // Mapper methods
-    public partial void MapFrom(OrderLineItemEntity entity);
-    public partial void MapTo(OrderLineItemEntity entity);
-    public partial void MapModifiedTo(OrderLineItemEntity entity);
-
     [Create]
     public void Create()
     {
@@ -430,7 +481,13 @@ internal partial class OrderLineItem
     [Fetch]
     public void Fetch(OrderLineItemEntity entity)
     {
-        MapFrom(entity);
+        // Load properties without triggering rules
+        LoadProperty(nameof(Id), entity.Id);
+        LoadProperty(nameof(ProductId), entity.ProductId);
+        LoadProperty(nameof(ProductName), entity.ProductName);
+        LoadProperty(nameof(Quantity), entity.Quantity);
+        LoadProperty(nameof(UnitPrice), entity.UnitPrice);
+        LoadProperty(nameof(LineTotal), entity.LineTotal);
     }
 }
 ```
@@ -1075,7 +1132,7 @@ The factory methods handle all database operations:
 
 - `[Fetch]` loads the aggregate with related data
 - `[Insert]` creates new records
-- `[Update]` uses `MapModifiedTo` for efficient updates
+- `[Update]` updates only modified properties for efficient persistence
 - `[Delete]` handles cascade delete
 - `[Update]` on the list processes `DeletedList` for removed items
 
@@ -1145,4 +1202,4 @@ public void OrderLineItem_WhenDuplicateProduct_ShowsError()
 - [Factory Operations Reference](/reference/factory-operations/) - Factory patterns
 - [Rules Engine Reference](/reference/rules/) - Business rules
 - [Blazor Integration](/guides/blazor-integration/) - UI patterns
-- [Data Mapping Reference](/reference/data-mapping/) - MapFrom, MapTo, MapModifiedTo
+- [Data Mapping Reference](/reference/data-mapping/) - Property mapping patterns

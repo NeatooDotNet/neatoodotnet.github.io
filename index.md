@@ -23,7 +23,7 @@ Neatoo is a DDD framework for .NET Blazor and WPF applications. Entities are tra
     * Bindable Meta Properties
         * Validation: IsValid, IsBusy
         * Change Tracking: IsNew, IsModified, IsDeleted
-    * Data-Mapper methods that are automatically called by the Factory
+    * Factory methods for data persistence with explicit property mapping
     * Each Entity Property has their own Bindable-Meta properties
         * Ex. Ability to know if an individual Entity Property has been modified
 * Rules
@@ -37,14 +37,14 @@ Neatoo is a DDD framework for .NET Blazor and WPF applications. Entities are tra
     * Neatoo moves the Entity’s state between Client and Server
     * Authorization
         * Custom Authorization and Asp authorization supported
-    * Data-Mapping 
-        * Correct Entity Data-Mapping method called based on Entitie’s change tracking meta properties
+    * Data Persistence
+        * LoadProperty() for efficient fetching without triggering rules
+        * Property modification tracking for efficient updates
     * Powered by Roslyn Source Generators
-        * Factory methods automatically change with the Data-Mapper definitions
 * Dependency Injection
     * Neatoo is Dependency Injection centric
     * Supports Constructor Injection
-    * Data-Mapper Method Injection Pattern
+    * Factory Method Injection Pattern
         * Disposable server-side only services are injected specifically where they are needed
     * Fully Extensible
         * None of the framework components are static or sealed. All are resolved as an service interface. Thus, the framework can be extended by providing a different implementation for a service interface.
@@ -84,7 +84,7 @@ Neatoo is a DDD framework for .NET Blazor and WPF applications. Entities are tra
 * Clear architecture and pattern for Aggregate, Entities and Rules
 * Clear pattern for Unit Testing everything
 * Clear and consistent implementation for Authorization
-* Clearly defined Data-Mapper implementation
+* Clear data persistence patterns with explicit property mapping
 
 # Cons
 * Rigid architecture
