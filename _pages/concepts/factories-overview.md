@@ -103,6 +103,24 @@ The generated factory:
 - Integrates authorization checks via `CanXYZ()` methods
 - Manages serialization for `[Remote]` operations
 
+### Records as Factory Targets
+
+Neatoo 10.1.0+ supports C# records with the factory pattern. Records are ideal for Value Objects:
+
+```csharp
+[Factory]
+[Create]
+public record Money(decimal Amount, string Currency = "USD");
+
+// Generated factory interface:
+public interface IMoneyFactory
+{
+    Money Create(decimal amount, string currency = "USD");
+}
+```
+
+Records support type-level `[Create]`, service injection via `[Service]` in parameters, and static `[Fetch]` methods. See [C# Records for Value Objects](/reference/base-value-objects/#c-records-for-value-objects) for complete documentation.
+
 ## Lifecycle Operations
 
 Neatoo entities have a well-defined lifecycle managed by five factory operations.

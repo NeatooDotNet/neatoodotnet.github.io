@@ -76,6 +76,72 @@ IPerson? Create();
 IPerson? Create(string name);
 ```
 
+### [Create] with Records
+
+C# records (10.1.0+) support a type-level `[Create]` attribute, enabling concise Value Object declarations:
+
+```csharp
+[Factory]
+[Create]
+public record Money(decimal Amount, string Currency = "USD");
+```
+
+**Generated Factory:**
+
+```csharp
+public interface IMoneyFactory
+{
+    Money Create(decimal amount, string currency = "USD");
+}
+```
+
+**Records with Service Injection:**
+
+```csharp
+[Factory]
+[Create]
+public record Address(
+    string Street,
+    string City,
+    string State,
+    string ZipCode,
+    [Service] IAddressValidator validator);
+
+// Generated (services hidden from interface):
+public interface IAddressFactory
+{
+    Address Create(string street, string city, string state, string zipCode);
+}
+```
+
+**Records with Validation:**
+
+For validation logic, use a static `[Create]` method:
+
+```csharp
+[Factory]
+public record Money(decimal Amount, string Currency)
+{
+    [Create]
+    public static Money Create(decimal amount, string currency = "USD")
+    {
+        if (amount < 0)
+            throw new ArgumentException("Amount cannot be negative");
+        return new Money(amount, currency.ToUpperInvariant());
+    }
+}
+```
+
+**Record Type Constraints:**
+
+| Type | Supported |
+|------|-----------|
+| `record` | ✅ Yes |
+| `record class` | ✅ Yes |
+| `record struct` | ❌ No (diagnostic NF0206) |
+
+See [C# Records for Value Objects](/reference/base-value-objects/#c-records-for-value-objects) for comprehensive coverage.
+
 ### [Fetch]
 
 Marks a method to retrieve an existing entity from persistence.

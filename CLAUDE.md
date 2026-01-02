@@ -39,16 +39,19 @@ Track which commits from each repository this documentation site is synchronized
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | `4c83d45` | 2025-12-30 |
-| RemoteFactory | `9e62dda` | 2025-12-30 |
+| Neatoo | `0df02e5` | 2026-01-01 |
+| RemoteFactory | `27760f8` | 2026-01-01 |
 
 When updating documentation, review commits since the last sync and update this table.
 
-**Note**: 2025-12-30 sync updated mapper documentation:
-- `MapFrom` and `MapTo` are now **manually implemented** (no longer source-generated)
-- `MapModifiedTo` remains **source-generated** by Neatoo
-- Data mapping uses explicit `LoadProperty()` calls and property assignments
-- See `factory-operations.md` and `data-mapping.md` for current patterns
+**Note**: 2026-01-01 sync added C# records support (Neatoo 10.1.1, RemoteFactory 10.1.0):
+- Records with type-level `[Create]` attribute for Value Objects
+- `[Service]` injection in record primary constructor parameters
+- Static `[Fetch]` methods for records
+- Full `[Remote]` serialization support
+- See `base-value-objects.md` and `factory-operations.md` for records documentation
+
+**Previous sync** (2025-12-30): Mapper documentation updated - `MapFrom`/`MapTo` manually implemented, `MapModifiedTo` source-generated
 
 ## Neatoo Skill Maintenance
 
@@ -64,8 +67,8 @@ Track which commits have been incorporated into the Neatoo skill:
 
 | Repository | Last Synced Commit | Date |
 |------------|-------------------|------|
-| Neatoo | `4c83d45` | 2025-12-30 |
-| RemoteFactory | `9e62dda` | 2025-12-30 |
+| Neatoo | `0df02e5` | 2026-01-01 |
+| RemoteFactory | `27760f8` | 2026-01-01 |
 
 ### Update Checklist
 
